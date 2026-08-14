@@ -126,7 +126,7 @@ function Account() {
 						<div>
 							<h2 className="mb-1">Minecraft API keys</h2>
 							<p className="m-0 text-ink/60">
-								Put a key in <code>config/mine-yapping.json</code>.
+								Join a world and run <code>/login &lt;token&gt;</code>.
 							</p>
 						</div>
 						<button

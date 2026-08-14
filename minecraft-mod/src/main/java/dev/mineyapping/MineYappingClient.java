@@ -2,6 +2,7 @@ package dev.mineyapping;
 
 import com.google.gson.Gson;
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
@@ -24,6 +25,8 @@ import javax.sound.sampled.Clip;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.TargetDataLine;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -60,6 +63,20 @@ public class MineYappingClient implements ClientModInitializer {
 		ModConfig config = loadConfig();
 		apiKey = config.apiKey();
 		conversationEndpoint = URI.create(config.serverUrl());
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
+				ClientCommands.literal("login")
+						.then(ClientCommands.argument("token", StringArgumentType.string()).executes(context -> {
+							String token = StringArgumentType.getString(context, "token");
+							try {
+								saveConfig(token);
+								apiKey = token;
+								context.getSource().sendFeedback(Component.literal("MineYapping login saved."));
+								return 1;
+							} catch (Exception exception) {
+								context.getSource().sendError(Component.literal("Could not save login: " + exception.getMessage()));
+								return 0;
+							}
+						}))));
 		talkKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
 				"key.mineyapping.talk",
 				InputConstants.Type.KEYSYM,
@@ -161,7 +178,7 @@ public class MineYappingClient implements ClientModInitializer {
 
 	private void sendConversation(Minecraft client, MobTarget target, byte[] audio, String text) throws Exception {
 		if (apiKey.isBlank()) {
-			throw new IllegalStateException("Add your dashboard API key to config/mine-yapping.json");
+			throw new IllegalStateException("Run /login <token> with your dashboard API key");
 		}
 		String boundary = "MineYapping-" + UUID.randomUUID();
 		HttpRequest request = HttpRequest.newBuilder(conversationEndpoint)
@@ -206,6 +223,14 @@ public class MineYappingClient implements ClientModInitializer {
 			System.err.println("Could not read " + path + ": " + exception.getMessage());
 			return new ModConfig("", DEFAULT_SERVER_URL);
 		}
+	}
+
+	private void saveConfig(String token) throws Exception {
+		Path path = FabricLoader.getInstance().getConfigDir().resolve("mine-yapping.json");
+		Files.writeString(
+				path,
+				GSON.toJson(new ModConfig(token, conversationEndpoint.toString())),
+				StandardCharsets.UTF_8);
 	}
 
 	private void play(String audio) {

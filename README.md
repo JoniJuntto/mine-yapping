@@ -220,9 +220,9 @@ cd minecraft-mod
 In IntelliJ: **Open** the `minecraft-mod` folder as its own Gradle project, then
 use the generated **Minecraft Client** run configuration.
 
-Create a Minecraft key under **Dashboard → Account**, launch the mod once, and
-paste the key into `.minecraft/config/mine-yapping.json`. Restart Minecraft after
-changing the file. For local testing, set `serverUrl` in that file to
+Create a Minecraft key under **Dashboard → Account**, join a world, and run
+`/login <token>` in chat. For local testing, set `serverUrl` in
+`.minecraft/config/mine-yapping.json` to
 `http://localhost:31415/api/converse`.
 
 To play with it normally, drop the jar into `.minecraft/mods` alongside Fabric

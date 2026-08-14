@@ -10,6 +10,100 @@ type Personality = {
 };
 
 type PersonalityInput = Omit<Personality, "id">;
+const entityTypes = [
+	"*",
+	"minecraft:allay",
+	"minecraft:armadillo",
+	"minecraft:armor_stand",
+	"minecraft:axolotl",
+	"minecraft:bat",
+	"minecraft:bee",
+	"minecraft:blaze",
+	"minecraft:bogged",
+	"minecraft:breeze",
+	"minecraft:camel",
+	"minecraft:camel_husk",
+	"minecraft:cat",
+	"minecraft:cave_spider",
+	"minecraft:chicken",
+	"minecraft:cod",
+	"minecraft:copper_golem",
+	"minecraft:cow",
+	"minecraft:creaking",
+	"minecraft:creeper",
+	"minecraft:dolphin",
+	"minecraft:donkey",
+	"minecraft:drowned",
+	"minecraft:elder_guardian",
+	"minecraft:ender_dragon",
+	"minecraft:enderman",
+	"minecraft:endermite",
+	"minecraft:evoker",
+	"minecraft:fox",
+	"minecraft:frog",
+	"minecraft:ghast",
+	"minecraft:giant",
+	"minecraft:glow_squid",
+	"minecraft:goat",
+	"minecraft:guardian",
+	"minecraft:happy_ghast",
+	"minecraft:hoglin",
+	"minecraft:horse",
+	"minecraft:husk",
+	"minecraft:illusioner",
+	"minecraft:iron_golem",
+	"minecraft:llama",
+	"minecraft:magma_cube",
+	"minecraft:mannequin",
+	"minecraft:mooshroom",
+	"minecraft:mule",
+	"minecraft:nautilus",
+	"minecraft:ocelot",
+	"minecraft:panda",
+	"minecraft:parched",
+	"minecraft:parrot",
+	"minecraft:phantom",
+	"minecraft:pig",
+	"minecraft:piglin",
+	"minecraft:piglin_brute",
+	"minecraft:pillager",
+	"minecraft:polar_bear",
+	"minecraft:pufferfish",
+	"minecraft:rabbit",
+	"minecraft:ravager",
+	"minecraft:salmon",
+	"minecraft:sheep",
+	"minecraft:shulker",
+	"minecraft:silverfish",
+	"minecraft:skeleton",
+	"minecraft:skeleton_horse",
+	"minecraft:slime",
+	"minecraft:sniffer",
+	"minecraft:snow_golem",
+	"minecraft:spider",
+	"minecraft:squid",
+	"minecraft:stray",
+	"minecraft:strider",
+	"minecraft:tadpole",
+	"minecraft:trader_llama",
+	"minecraft:tropical_fish",
+	"minecraft:turtle",
+	"minecraft:vex",
+	"minecraft:villager",
+	"minecraft:vindicator",
+	"minecraft:wandering_trader",
+	"minecraft:warden",
+	"minecraft:witch",
+	"minecraft:wither",
+	"minecraft:wither_skeleton",
+	"minecraft:wolf",
+	"minecraft:zoglin",
+	"minecraft:zombie",
+	"minecraft:zombie_horse",
+	"minecraft:zombie_nautilus",
+	"minecraft:zombie_villager",
+	"minecraft:zombified_piglin",
+];
 const emptyPersonality: PersonalityInput = {
 	entityType: "*",
 	label: "",
@@ -175,12 +269,16 @@ function PersonalityForm({
 			<div className="grid gap-4 md:grid-cols-2">
 				<label>
 					Entity type
-					<input
-						name="entityType"
-						defaultValue={initial.entityType}
-						required
-						maxLength={100}
-					/>
+					<select name="entityType" defaultValue={initial.entityType} required>
+						{!entityTypes.includes(initial.entityType) && (
+							<option value={initial.entityType}>{initial.entityType}</option>
+						)}
+						{entityTypes.map((entityType) => (
+							<option key={entityType} value={entityType}>
+								{entityType === "*" ? "All entities (fallback)" : entityType}
+							</option>
+						))}
+					</select>
 				</label>
 				<label>
 					Label

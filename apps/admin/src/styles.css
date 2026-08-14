@@ -18,6 +18,7 @@ body {
 
 button,
 input,
+select,
 textarea {
 	font: inherit;
 }
@@ -42,6 +43,7 @@ label:not(.flex-row) {
 }
 
 input:not([type="checkbox"]),
+select,
 textarea {
 	box-sizing: border-box;
 	width: 100%;
@@ -52,6 +54,7 @@ textarea {
 }
 
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
 a:focus-visible {
