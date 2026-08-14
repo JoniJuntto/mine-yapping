@@ -9,6 +9,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Comparator;
@@ -22,6 +24,7 @@ import javax.sound.sampled.Clip;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.TargetDataLine;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
@@ -37,8 +40,7 @@ import org.lwjgl.glfw.GLFW;
 
 public class MineYappingClient implements ClientModInitializer {
 	private static final double LISTEN_RADIUS = 8.0;
-	// ponytail: local endpoint until players need configurable or hosted backends.
-	private static final URI CONVERSATION_ENDPOINT = URI.create("https://yapping.arvoitus.com/api/converse");
+	private static final String DEFAULT_SERVER_URL = "https://yapping.arvoitus.com/api/converse";
 	private static final KeyMapping.Category CATEGORY =
 			KeyMapping.Category.register(Identifier.fromNamespaceAndPath("mineyapping", "conversation"));
 	private static final HttpClient HTTP = HttpClient.newBuilder()
@@ -50,9 +52,14 @@ public class MineYappingClient implements ClientModInitializer {
 	private boolean wasDown;
 	private VoiceRecording recording;
 	private MobTarget talkingTo;
+	private String apiKey = "";
+	private URI conversationEndpoint = URI.create(DEFAULT_SERVER_URL);
 
 	@Override
 	public void onInitializeClient() {
+		ModConfig config = loadConfig();
+		apiKey = config.apiKey();
+		conversationEndpoint = URI.create(config.serverUrl());
 		talkKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
 				"key.mineyapping.talk",
 				InputConstants.Type.KEYSYM,
@@ -153,9 +160,13 @@ public class MineYappingClient implements ClientModInitializer {
 	}
 
 	private void sendConversation(Minecraft client, MobTarget target, byte[] audio, String text) throws Exception {
+		if (apiKey.isBlank()) {
+			throw new IllegalStateException("Add your dashboard API key to config/mine-yapping.json");
+		}
 		String boundary = "MineYapping-" + UUID.randomUUID();
-		HttpRequest request = HttpRequest.newBuilder(CONVERSATION_ENDPOINT)
+		HttpRequest request = HttpRequest.newBuilder(conversationEndpoint)
 				.timeout(Duration.ofSeconds(45))
+				.header("x-api-key", apiKey)
 				.header("Content-Type", "multipart/form-data; boundary=" + boundary)
 				.POST(HttpRequest.BodyPublishers.ofByteArray(multipart(boundary, target, audio, text)))
 				.build();
@@ -175,6 +186,26 @@ public class MineYappingClient implements ClientModInitializer {
 					say(client, ChatFormatting.GOLD, target.entityName() + ": " + reply.reply());
 					play(reply.audio());
 				}));
+	}
+
+	private ModConfig loadConfig() {
+		Path path = FabricLoader.getInstance().getConfigDir().resolve("mine-yapping.json");
+		try {
+			if (Files.notExists(path)) {
+				Files.writeString(path, "{\n  \"apiKey\": \"\",\n  \"serverUrl\": \"" + DEFAULT_SERVER_URL
+						+ "\"\n}\n", StandardCharsets.UTF_8);
+				return new ModConfig("", DEFAULT_SERVER_URL);
+			}
+			ModConfig config = GSON.fromJson(Files.readString(path), ModConfig.class);
+			return new ModConfig(
+					config == null || config.apiKey() == null ? "" : config.apiKey().trim(),
+					config == null || config.serverUrl() == null || config.serverUrl().isBlank()
+							? DEFAULT_SERVER_URL
+							: config.serverUrl().trim());
+		} catch (Exception exception) {
+			System.err.println("Could not read " + path + ": " + exception.getMessage());
+			return new ModConfig("", DEFAULT_SERVER_URL);
+		}
 	}
 
 	private void play(String audio) {
@@ -239,6 +270,8 @@ public class MineYappingClient implements ClientModInitializer {
 			String playerName,
 			String dimension,
 			String health) {}
+
+	private record ModConfig(String apiKey, String serverUrl) {}
 
 	private record ServerReply(String transcript, String reply, String audio) {}
 
