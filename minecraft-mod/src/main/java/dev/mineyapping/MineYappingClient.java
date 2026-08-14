@@ -171,7 +171,7 @@ public class MineYappingClient implements ClientModInitializer {
 						return;
 					}
 					ServerReply reply = GSON.fromJson(response.body(), ServerReply.class);
-					say(client, ChatFormatting.DARK_GRAY, "You: " + reply.transcript());
+					say(client, ChatFormatting.DARK_GRAY, "[DEBUG] " + reply.transcript());
 					say(client, ChatFormatting.GOLD, target.entityName() + ": " + reply.reply());
 					play(reply.audio());
 				}));
