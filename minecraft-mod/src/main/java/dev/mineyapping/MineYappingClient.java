@@ -24,6 +24,7 @@ import javax.sound.sampled.TargetDataLine;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -37,7 +38,7 @@ import org.lwjgl.glfw.GLFW;
 public class MineYappingClient implements ClientModInitializer {
 	private static final double LISTEN_RADIUS = 8.0;
 	// ponytail: local endpoint until players need configurable or hosted backends.
-	private static final URI CONVERSATION_ENDPOINT = URI.create("http://localhost:31415/api/converse");
+	private static final URI CONVERSATION_ENDPOINT = URI.create("https://yapping.arvoitus.com/api/converse");
 	private static final KeyMapping.Category CATEGORY =
 			KeyMapping.Category.register(Identifier.fromNamespaceAndPath("mineyapping", "conversation"));
 	private static final HttpClient HTTP = HttpClient.newBuilder()
@@ -65,6 +66,21 @@ public class MineYappingClient implements ClientModInitializer {
 			if (down) onTalkStart(client);
 			else onTalkStop(client);
 		});
+		ClientSendMessageEvents.ALLOW_CHAT.register(this::onChat);
+	}
+
+	private boolean onChat(String message) {
+		Minecraft client = Minecraft.getInstance();
+		if (client.level == null || client.player == null) return true;
+		LivingEntity entity = findTarget(client);
+		if (entity == null) return true;
+		try {
+			say(client, ChatFormatting.GRAY, "Thinking...");
+			sendConversation(client, target(client, entity), message);
+		} catch (Exception exception) {
+			say(client, ChatFormatting.RED, "Conversation failed: " + exception.getMessage());
+		}
+		return false;
 	}
 
 	private void onTalkStart(Minecraft client) {
@@ -78,13 +94,7 @@ public class MineYappingClient implements ClientModInitializer {
 
 		try {
 			recording = VoiceRecording.start();
-			talkingTo = new MobTarget(
-					target.getUUID().toString(),
-					EntityType.getKey(target.getType()).toString(),
-					target.getName().getString(),
-					client.player.getName().getString(),
-					client.level.dimension().identifier().toString(),
-					String.format("%.1f/%.1f", target.getHealth(), target.getMaxHealth()));
+			talkingTo = target(client, target);
 			say(client, ChatFormatting.AQUA, "Listening to " + talkingTo.entityName() + "...");
 		} catch (Exception exception) {
 			say(client, ChatFormatting.RED, "Microphone unavailable: " + exception.getMessage());
@@ -124,12 +134,30 @@ public class MineYappingClient implements ClientModInitializer {
 		return nearby.stream().min(Comparator.comparingDouble(client.player::distanceTo)).orElse(null);
 	}
 
+	private MobTarget target(Minecraft client, LivingEntity entity) {
+		return new MobTarget(
+				entity.getUUID().toString(),
+				EntityType.getKey(entity.getType()).toString(),
+				entity.getName().getString(),
+				client.player.getName().getString(),
+				client.level.dimension().identifier().toString(),
+				String.format("%.1f/%.1f", entity.getHealth(), entity.getMaxHealth()));
+	}
+
 	private void sendConversation(Minecraft client, MobTarget target, byte[] audio) throws Exception {
+		sendConversation(client, target, audio, null);
+	}
+
+	private void sendConversation(Minecraft client, MobTarget target, String text) throws Exception {
+		sendConversation(client, target, null, text);
+	}
+
+	private void sendConversation(Minecraft client, MobTarget target, byte[] audio, String text) throws Exception {
 		String boundary = "MineYapping-" + UUID.randomUUID();
 		HttpRequest request = HttpRequest.newBuilder(CONVERSATION_ENDPOINT)
 				.timeout(Duration.ofSeconds(45))
 				.header("Content-Type", "multipart/form-data; boundary=" + boundary)
-				.POST(HttpRequest.BodyPublishers.ofByteArray(multipart(boundary, target, audio)))
+				.POST(HttpRequest.BodyPublishers.ofByteArray(multipart(boundary, target, audio, text)))
 				.build();
 		HTTP.sendAsync(request, HttpResponse.BodyHandlers.ofString()).whenComplete((response, failure) ->
 				client.execute(() -> {
@@ -166,7 +194,7 @@ public class MineYappingClient implements ClientModInitializer {
 		});
 	}
 
-	private static byte[] multipart(String boundary, MobTarget target, byte[] audio) throws Exception {
+	private static byte[] multipart(String boundary, MobTarget target, byte[] audio, String text) throws Exception {
 		ByteArrayOutputStream body = new ByteArrayOutputStream();
 		field(body, boundary, "entityId", target.entityId());
 		field(body, boundary, "entityType", target.entityType());
@@ -174,10 +202,14 @@ public class MineYappingClient implements ClientModInitializer {
 		field(body, boundary, "playerName", target.playerName());
 		field(body, boundary, "dimension", target.dimension());
 		field(body, boundary, "health", target.health());
-		body.write(("--" + boundary + "\r\n"
-				+ "Content-Disposition: form-data; name=\"audio\"; filename=\"speech.wav\"\r\n"
-				+ "Content-Type: audio/wav\r\n\r\n").getBytes(StandardCharsets.UTF_8));
-		body.write(audio);
+		if (text != null) {
+			field(body, boundary, "text", text);
+		} else {
+			body.write(("--" + boundary + "\r\n"
+					+ "Content-Disposition: form-data; name=\"audio\"; filename=\"speech.wav\"\r\n"
+					+ "Content-Type: audio/wav\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+			body.write(audio);
+		}
 		body.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
 		return body.toByteArray();
 	}
