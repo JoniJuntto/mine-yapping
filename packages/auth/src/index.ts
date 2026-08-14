@@ -3,7 +3,7 @@ import { createDb } from "@mine-yapping/db";
 import { appSettings } from "@mine-yapping/db/schema/app";
 import * as schema from "@mine-yapping/db/schema/auth";
 import { env } from "@mine-yapping/env/server";
-import { checkout, polar, portal } from "@polar-sh/better-auth";
+import { checkout, polar } from "@polar-sh/better-auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
@@ -43,19 +43,17 @@ export function createAuth() {
 			polar({
 				client: polarClient,
 				createCustomerOnSignUp: true,
-				enableCustomerPortal: true,
 				use: [
 					checkout({
 						products: async () => {
 							const [settings] = await db.select().from(appSettings).limit(1);
 							return settings?.polarProductId
-								? [{ productId: settings.polarProductId, slug: "pro" }]
+								? [{ productId: settings.polarProductId, slug: "donate" }]
 								: [];
 						},
 						successUrl: env.POLAR_SUCCESS_URL,
-						authenticatedUsersOnly: true,
+						authenticatedUsersOnly: false,
 					}),
-					portal(),
 				],
 			}),
 		],

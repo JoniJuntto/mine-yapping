@@ -12,8 +12,7 @@ type UserRow = {
 	role: string | null;
 	banned: boolean | null;
 	createdAt: string;
-	subscription: string;
-	usage: { requests: number };
+	usage: { requests: number; byokRequests: number };
 };
 export const Route = createFileRoute("/admin_/users")({
 	beforeLoad: () => requireUser(true),
@@ -81,8 +80,8 @@ function Users() {
 								<h2 className="m-0 text-xl">{record.name}</h2>
 								<p className="mt-1 text-ink/60">{record.email}</p>
 								<p className="m-0 text-sm">
-									{record.subscription} · {record.usage.requests} requests this
-									month · joined{" "}
+									{record.usage.requests} free · {record.usage.byokRequests}{" "}
+									BYOK requests this month · joined{" "}
 									{new Date(record.createdAt).toLocaleDateString()}
 								</p>
 							</div>

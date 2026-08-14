@@ -5,11 +5,11 @@ import { count, desc, eq, ilike, or } from "drizzle-orm";
 import { Elysia, t } from "elysia";
 import { getSession, hasRole } from "./access";
 import {
-	getSettings,
-	globalUsage,
-	subscriptionStatus,
-	usageFor,
-} from "./usage";
+	deleteProviderKeys,
+	hasProviderKeys,
+	saveProviderKeys,
+} from "./provider-key";
+import { getSettings, globalUsage, usageFor } from "./usage";
 
 const sessionApi = new Elysia({ prefix: "/api" })
 	.resolve(async ({ request, status }) => {
@@ -18,18 +18,47 @@ const sessionApi = new Elysia({ prefix: "/api" })
 		return { currentUser: session.user };
 	})
 	.get("/me/summary", async ({ currentUser }) => {
-		const [settings, usage, subscription] = await Promise.all([
+		const [settings, usage, byokConfigured] = await Promise.all([
 			getSettings(),
 			usageFor(currentUser.id),
-			subscriptionStatus(currentUser.id),
+			hasProviderKeys(currentUser.id),
 		]);
 		return {
 			user: currentUser,
-			subscription,
 			usage,
-			monthlyFreeRequests: settings.monthlyFreeRequests,
-			checkoutEnabled: !!settings.polarProductId,
+			byokConfigured,
+			monthlyRequestLimit: settings.monthlyFreeRequests,
+			donationsEnabled: !!settings.polarProductId,
 		};
+	})
+	.put(
+		"/me/provider-keys",
+		async ({ body, currentUser }) => {
+			await saveProviderKeys(
+				currentUser.id,
+				body.openAiApiKey,
+				body.elevenLabsApiKey,
+			);
+			return { configured: true };
+		},
+		{
+			body: t.Object({
+				openAiApiKey: t.String({
+					minLength: 1,
+					maxLength: 512,
+					pattern: "\\S",
+				}),
+				elevenLabsApiKey: t.String({
+					minLength: 1,
+					maxLength: 512,
+					pattern: "\\S",
+				}),
+			}),
+		},
+	)
+	.delete("/me/provider-keys", async ({ currentUser, status }) => {
+		await deleteProviderKeys(currentUser.id);
+		return status(204);
 	});
 
 const adminApi = new Elysia({ prefix: "/api/admin" })
@@ -40,7 +69,7 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 		return { currentUser: session.user };
 	})
 	.get("/overview", async () => {
-		const [[users], usage, failures, userIds] = await Promise.all([
+		const [[users], usage, failures] = await Promise.all([
 			db.select({ count: count() }).from(user),
 			globalUsage(),
 			db
@@ -48,6 +77,7 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 					id: usageEvent.id,
 					createdAt: usageEvent.createdAt,
 					latencyMs: usageEvent.latencyMs,
+					billingMode: usageEvent.billingMode,
 					email: user.email,
 				})
 				.from(usageEvent)
@@ -55,15 +85,9 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 				.where(eq(usageEvent.successful, false))
 				.orderBy(desc(usageEvent.createdAt))
 				.limit(10),
-			db.select({ id: user.id }).from(user),
 		]);
-		const subscriptions = await Promise.all(
-			userIds.map(({ id }) => subscriptionStatus(id)),
-		);
 		return {
 			users: users?.count ?? 0,
-			activeSubscriptions: subscriptions.filter((value) => value === "pro")
-				.length,
 			usage,
 			failures,
 		};
@@ -87,7 +111,6 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 			return Promise.all(
 				records.map(async (record) => ({
 					...record,
-					subscription: await subscriptionStatus(record.id),
 					usage: await usageFor(record.id),
 				})),
 			);

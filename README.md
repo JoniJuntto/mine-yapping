@@ -1,5 +1,8 @@
 # mine-yapping
 
+> **NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH
+> MOJANG OR MICROSOFT.**
+
 Talk to Minecraft mobs with your voice. Hold **V**, speak at a mob, and it answers
 in character — in chat and out loud.
 
@@ -54,14 +57,15 @@ on vanilla and modded multiplayer servers with only you having it installed.
 - **Owned personality API** — users manage only their prompts; admins manage global
   defaults. Every ownership and role check is enforced by the server.
 - **Usage and quotas** — successful and failed requests are recorded without audio
-  or transcripts, with Polar subscriptions checked when the free quota is reached.
+  or transcripts. Every account has the same monthly limit; optional Polar
+  donations grant no features or additional usage.
 - **Env validation** at boot via `@t3-oss/env-core` + Zod — the process refuses to
   start with missing or malformed config rather than failing at request time.
 
 ### Platform
 
 - **Auth** — Better-Auth with email/password, Drizzle adapter on PostgreSQL,
-  admin roles, hashed API keys, and Polar checkout/customer portal.
+  admin roles, hashed API keys, and optional Polar donations.
 - **Database** — Drizzle ORM, PostgreSQL, schema-first with push/generate/migrate.
 - **Docs site** — Fumadocs (TanStack Start + Vite) in `apps/fumadocs`.
 - **Web app** — landing, signup/login, user dashboard, billing/API-key account page,
@@ -69,6 +73,8 @@ on vanilla and modded multiplayer servers with only you having it installed.
 - **Tooling** — Turborepo, Biome, Bun workspaces, TypeScript.
 
 `/api/converse` requires a hashed, revocable Better Auth API key in `x-api-key`.
+Users can optionally save encrypted OpenAI and ElevenLabs keys from their account
+page; those BYOK requests do not consume the monthly free allowance.
 
 ## Project structure
 

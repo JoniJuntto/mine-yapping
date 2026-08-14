@@ -7,15 +7,14 @@ import { requireUser } from "../lib/route-guards";
 
 type Summary = {
 	user: { name: string; email: string };
-	subscription: "free" | "pro";
 	usage: {
 		requests: number;
+		byokRequests: number;
 		inputTokens: number;
 		outputTokens: number;
 		ttsCharacters: number;
 	};
-	monthlyFreeRequests: number;
-	checkoutEnabled: boolean;
+	monthlyRequestLimit: number;
 };
 
 export const Route = createFileRoute("/dashboard")({
@@ -51,16 +50,16 @@ function Dashboard() {
 			)}
 			<div className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<Stat
-					label="Plan"
-					value={summary?.subscription === "pro" ? "Pro" : "Free"}
-				/>
-				<Stat
 					label="Requests this month"
 					value={
 						summary
-							? `${summary.usage.requests}${summary.subscription === "free" ? ` / ${summary.monthlyFreeRequests}` : ""}`
+							? `${summary.usage.requests} / ${summary.monthlyRequestLimit}`
 							: "—"
 					}
+				/>
+				<Stat
+					label="BYOK requests"
+					value={summary?.usage.byokRequests.toLocaleString() ?? "—"}
 				/>
 				<Stat
 					label="AI tokens"

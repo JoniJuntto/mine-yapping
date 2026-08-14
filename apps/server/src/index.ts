@@ -6,6 +6,7 @@ import { getApiKeyUser } from "./access";
 import { appApi } from "./app-api";
 import { converse } from "./conversation";
 import { promptsApi } from "./prompts";
+import { getProviderKeys } from "./provider-key";
 import { finalizeUsage, reserveUsage } from "./usage";
 
 new Elysia()
@@ -41,12 +42,24 @@ new Elysia()
 			if (body.audio && body.audio.size > 5 * 1024 * 1024)
 				return status(413, "Audio must be under 5 MB");
 			const inputType = body.audio ? "audio" : "text";
+			let byokKeys: Awaited<ReturnType<typeof getProviderKeys>>;
+			try {
+				byokKeys = await getProviderKeys(identity.user.id);
+			} catch (cause) {
+				console.error("Could not load BYOK credentials:", cause);
+				return status(503, "Could not load BYOK credentials");
+			}
+			const billingMode = byokKeys ? "byok" : "free";
 			let reservationId: string | null;
 			try {
-				reservationId = await reserveUsage(identity.user.id, inputType);
+				reservationId = await reserveUsage(
+					identity.user.id,
+					inputType,
+					billingMode,
+				);
 			} catch (cause) {
 				console.error("Could not verify quota:", cause);
-				return status(503, "Could not verify subscription or usage limit");
+				return status(503, "Could not verify usage limit");
 			}
 			if (!reservationId) {
 				return status(402, "Monthly free usage limit reached");
@@ -55,8 +68,8 @@ new Elysia()
 				const result = await converse(
 					input,
 					body,
-					env.OPENAI_API_KEY,
-					env.ELEVENLABS_API_KEY,
+					byokKeys?.openAi ?? env.OPENAI_API_KEY,
+					byokKeys?.elevenLabs ?? env.ELEVENLABS_API_KEY,
 					identity.user.id,
 				);
 				const { usage, ...reply } = result;

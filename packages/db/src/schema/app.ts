@@ -19,6 +19,18 @@ export const appSettings = pgTable("app_settings", {
 		.notNull(),
 });
 
+export const userProviderKey = pgTable("user_provider_key", {
+	userId: text("user_id")
+		.primaryKey()
+		.references(() => user.id, { onDelete: "cascade" }),
+	encryptedOpenAiKey: text("encrypted_openai_key").notNull(),
+	encryptedElevenLabsKey: text("encrypted_elevenlabs_key").notNull(),
+	updatedAt: timestamp("updated_at")
+		.defaultNow()
+		.$onUpdate(() => new Date())
+		.notNull(),
+});
+
 export const usageEvent = pgTable(
 	"usage_event",
 	{
@@ -28,6 +40,10 @@ export const usageEvent = pgTable(
 			.references(() => user.id, { onDelete: "cascade" }),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		successful: boolean("successful").notNull(),
+		billingMode: text("billing_mode")
+			.$type<"free" | "byok">()
+			.default("free")
+			.notNull(),
 		inputType: text("input_type").notNull(),
 		inputTokens: integer("input_tokens").default(0).notNull(),
 		outputTokens: integer("output_tokens").default(0).notNull(),

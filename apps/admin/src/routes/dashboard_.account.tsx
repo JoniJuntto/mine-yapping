@@ -13,8 +13,8 @@ type Key = {
 };
 type Summary = {
 	user: { name: string; email: string };
-	subscription: string;
-	checkoutEnabled: boolean;
+	donationsEnabled: boolean;
+	byokConfigured: boolean;
 };
 
 export const Route = createFileRoute("/dashboard_/account")({
@@ -27,6 +27,7 @@ function Account() {
 	const [keys, setKeys] = useState<Key[]>([]);
 	const [newKey, setNewKey] = useState("");
 	const [error, setError] = useState("");
+	const [byokMessage, setByokMessage] = useState("");
 	const loadKeys = useCallback(async () => {
 		const result = await authClient.apiKey.list();
 		if (result.error) throw new Error(result.error.message);
@@ -66,6 +67,28 @@ function Account() {
 		await loadKeys();
 	}
 
+	async function saveByokKey(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		try {
+			const data = new FormData(event.currentTarget);
+			await api("/me/provider-keys", {
+				method: "PUT",
+				body: JSON.stringify({
+					openAiApiKey: data.get("openAiApiKey"),
+					elevenLabsApiKey: data.get("elevenLabsApiKey"),
+				}),
+			});
+			event.currentTarget.reset();
+			setSummary((value) =>
+				value ? { ...value, byokConfigured: true } : value,
+			);
+			setByokMessage("Provider keys saved.");
+			setError("");
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : "Could not save key");
+		}
+	}
+
 	return (
 		<AppShell>
 			<p className="eyebrow">Account</p>
@@ -98,28 +121,86 @@ function Account() {
 					</form>
 				</section>
 				<section className="card">
-					<h2>Subscription</h2>
+					<h2>Support Mine Yapping</h2>
 					<p>
-						You are on the <strong>{summary?.subscription ?? "…"}</strong> plan.
+						Donations are optional and never change features or usage limits.
 					</p>
-					<div className="flex flex-wrap gap-2">
-						{summary?.subscription !== "pro" && summary?.checkoutEnabled && (
-							<button
-								type="button"
-								className="button-primary"
-								onClick={() => authClient.checkout({ slug: "pro" })}
-							>
-								Upgrade
-							</button>
-						)}
+					{summary?.donationsEnabled && (
 						<button
 							type="button"
-							className="button-secondary"
-							onClick={() => authClient.customer.portal()}
+							className="button-primary"
+							onClick={() => authClient.checkout({ slug: "donate" })}
 						>
-							Open billing portal
+							Donate
 						</button>
-					</div>
+					)}
+				</section>
+				<section className="card lg:col-span-2">
+					<h2>Bring your own provider keys</h2>
+					<p>
+						Use your own OpenAI and ElevenLabs accounts instead of the monthly
+						free allowance.
+					</p>
+					<form onSubmit={saveByokKey} className="grid gap-4">
+						<label>
+							OpenAI API key
+							<input
+								type="password"
+								name="openAiApiKey"
+								autoComplete="off"
+								maxLength={512}
+								required
+							/>
+							<small>The key is encrypted and is never shown again.</small>
+						</label>
+						<label>
+							ElevenLabs API key
+							<input
+								type="password"
+								name="elevenLabsApiKey"
+								autoComplete="off"
+								maxLength={512}
+								required
+							/>
+							<small>The key is encrypted and is never shown again.</small>
+						</label>
+						<div className="flex flex-wrap gap-2">
+							<button type="submit" className="button-primary">
+								{summary?.byokConfigured ? "Replace key" : "Save key"}
+							</button>
+							{summary?.byokConfigured && (
+								<button
+									type="button"
+									className="button-danger"
+									onClick={async () => {
+										try {
+											await api("/me/provider-keys", {
+												method: "DELETE",
+											});
+											setSummary((value) =>
+												value ? { ...value, byokConfigured: false } : value,
+											);
+											setByokMessage("Using the free tier.");
+											setError("");
+										} catch (cause) {
+											setError(
+												cause instanceof Error
+													? cause.message
+													: "Could not remove key",
+											);
+										}
+									}}
+								>
+									Remove key
+								</button>
+							)}
+						</div>
+					</form>
+					{byokMessage && (
+						<p role="status" className="mb-0 text-sm">
+							{byokMessage}
+						</p>
+					)}
 				</section>
 				<section className="card lg:col-span-2">
 					<div className="flex flex-wrap items-center justify-between gap-3">

@@ -4,7 +4,10 @@ import { AdminNav, AppShell } from "../components/app-shell";
 import { api } from "../lib/api";
 import { requireUser } from "../lib/route-guards";
 
-type Settings = { monthlyFreeRequests: number; polarProductId: string | null };
+type Settings = {
+	monthlyFreeRequests: number;
+	polarProductId: string | null;
+};
 export const Route = createFileRoute("/admin_/settings")({
 	beforeLoad: () => requireUser(true),
 	component: SettingsPage,
@@ -53,18 +56,18 @@ function SettingsPage() {
 								defaultValue={settings.monthlyFreeRequests}
 								required
 							/>
-							<small>
-								Applied before paid subscription entitlement is checked.
-							</small>
 						</label>
 						<label>
-							Polar Pro product ID
+							Polar donation product ID
 							<input
 								name="polarProductId"
 								defaultValue={settings.polarProductId ?? ""}
-								placeholder="Leave blank to disable checkout"
+								placeholder="Leave blank to disable donations"
 								maxLength={200}
 							/>
+							<small>
+								Use a one-time product. Donations grant no benefits.
+							</small>
 						</label>
 						<button className="button-primary" type="submit">
 							Save settings

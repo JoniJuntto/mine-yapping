@@ -102,7 +102,7 @@ DATABASE_URL=postgres://upadmin:PASSWORD@HOST:PORT/mineyapping?sslmode=require
 BETTER_AUTH_SECRET=REPLACE_ME
 BETTER_AUTH_URL=https://yapping.arvoitus.com
 POLAR_ACCESS_TOKEN=REPLACE_ME
-POLAR_SUCCESS_URL=https://yapping.arvoitus.com/success
+POLAR_SUCCESS_URL=https://yapping.arvoitus.com
 POLAR_SERVER=production
 CORS_ORIGIN=https://yapping.arvoitus.com
 OPENAI_API_KEY=sk-REPLACE_ME
@@ -281,7 +281,7 @@ After launching once, they paste that key into
 ## Protecting provider spend
 
 `/api/converse` verifies a hashed, revocable per-user API key, account bans,
-monthly usage limits, and Polar entitlement before calling providers. Also set
+the same monthly usage limit for every user before calling providers. Also set
 hard spend caps in the OpenAI and ElevenLabs dashboards as a final backstop.
 
 ## Updating a deployment

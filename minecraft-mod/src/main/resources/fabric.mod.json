@@ -3,7 +3,7 @@
 	"id": "mineyapping",
 	"version": "${version}",
 	"name": "MineYapping",
-	"description": "Talk to Minecraft mobs with your voice.",
+	"description": "Talk to Minecraft mobs with your voice. Not an official Minecraft product; not approved by or associated with Mojang or Microsoft.",
 	"authors": ["joni"],
 	"license": "MIT",
 	"environment": "client",

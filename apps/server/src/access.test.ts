@@ -8,8 +8,9 @@ test("admin checks exact roles", () => {
 	expect(hasRole("user", "admin")).toBe(false);
 });
 
-test("free quota stops at the limit while subscriptions bypass it", () => {
-	expect(quotaAllowed(99, 100, false)).toBe(true);
-	expect(quotaAllowed(100, 100, false)).toBe(false);
-	expect(quotaAllowed(100, 100, true)).toBe(true);
+test("quota stops at the plan limit", () => {
+	expect(quotaAllowed(99, 100)).toBe(true);
+	expect(quotaAllowed(100, 100)).toBe(false);
+	expect(quotaAllowed(1_999, 2_000)).toBe(true);
+	expect(quotaAllowed(2_000, 2_000)).toBe(false);
 });

@@ -1,0 +1,1 @@
+ALTER TABLE "usage_event" ADD COLUMN "billing_mode" text DEFAULT 'free' NOT NULL;

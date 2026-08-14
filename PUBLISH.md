@@ -1,0 +1,527 @@
+# Publishing Mine Yapping
+
+This is the release runbook for turning the repository into a public, free
+service at `https://yapping.arvoitus.com`, funded by optional donations.
+
+`DEPLOY.md` is the command-by-command VPS/Caddy/PostgreSQL guide. This document
+covers the larger launch: product decisions, legal and provider setup, payment,
+the downloadable mod, user onboarding, verification, operations, and rollback.
+
+## What is being published
+
+| Part | Production location | How it ships |
+| --- | --- | --- |
+| Product website and dashboard | `https://yapping.arvoitus.com` | `web` Docker container behind Caddy |
+| Auth, donations, admin, and conversation API | `https://yapping.arvoitus.com/api/*` | `server` Docker container behind Caddy |
+| PostgreSQL | UpCloud Managed PostgreSQL | Private/TLS database connection |
+| Fabric client mod | GitHub Releases | Free downloadable jar |
+| AI providers | OpenAI + ElevenLabs | Server-side API calls only |
+| Donations | Polar | Hosted one-time checkout |
+
+The mod is client-only. It does not go on a Minecraft server. A player installs
+the jar, creates a website account and API key, then uses that key in the mod.
+
+## Launch blockers
+
+### Product and legal
+
+- [ ] Choose the legal seller name, country, support email, public contact
+  address, donation amount/currency, refund policy, and monthly allowance.
+  - Seller name: Pöhinä Group Oy
+  - Support email: joni@pohina.group
+  - Donation amount: configure a one-time Polar product
+  - Refund policy: No refunds
+  - Monthly allowance: 100 requests for every user
+- [x] Review the model against the current
+  [Minecraft EULA](https://www.minecraft.net/eula) and
+  [Minecraft Usage Guidelines](https://www.minecraft.net/usage-guidelines).
+  The mod is free, donations grant no benefits, and authorization never checks
+  Polar customer state. Re-review before changing any of those facts.
+- [x] Put this prominently on the website and mod metadata, and also include it
+  on the download page, release notes, and
+  store description: **“NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR
+  ASSOCIATED WITH MOJANG OR MICROSOFT.”**
+- [ ] Do not use the Minecraft logo, official artwork, game files, or wording
+  that implies endorsement. Only distribute this project's jar.
+- [ ] Publish Terms of Service, Privacy Policy, Refund/Cancellation Policy, and a
+  support contact before checkout is enabled. The privacy notice must explain
+  that microphone audio and text are sent to the service and its OpenAI and
+  ElevenLabs subprocessors, what usage/account data is retained, retention
+  periods, deletion/contact rights, and international transfers where relevant.
+- [ ] Confirm whether an age gate or parental consent is required for the chosen
+  markets. Minecraft has many minors; do not silently treat this as adult-only.
+- [ ] Confirm the code license. `fabric.mod.json` says MIT, but the repository has
+  no `LICENSE` file. Add the intended license before distributing binaries.
+
+This is an engineering checklist, not legal or tax advice.
+
+### Product behavior that must be decided or fixed
+
+- [ ] Add a visible **Download mod** link to the landing page and signed-in
+  dashboard. Point it at the stable release asset described below.
+- [x] State that the mod is free, all users have the same monthly allowance, and
+  donations grant no features or additional usage.
+- [ ] Decide account recovery. The current app has no password reset, email
+  verification, or email delivery. For a small closed beta, document manual
+  support recovery; before public launch, add a verified recovery path.
+- [ ] Decide account deletion. The current UI has no deletion flow and the Polar
+  customer is not automatically deleted if a database user is deleted. Define a
+  support process or implement deletion before promising self-service deletion.
+- [ ] Add links to support, Terms, Privacy, and Refund/Cancellation Policy in the
+  site footer and checkout-adjacent UI.
+- [ ] Set `POLAR_SUCCESS_URL` to the existing
+	`https://yapping.arvoitus.com`. Do not use the `/success`
+  value currently shown in `DEPLOY.md`; that route does not exist.
+- [ ] Decide whether public sign-up is open. Use `DISABLE_SIGN_UP=false` for a
+  public launch; use `true` only after creating all invited accounts.
+- [ ] Remove the `[DEBUG]` label shown for the player's transcript in Minecraft,
+  or consciously accept it as release UI.
+- [ ] Confirm Windows, macOS, and Linux microphone and audio playback on the exact
+  Minecraft release. Android/PojavLauncher is explicitly unsupported.
+
+### Safety, cost, and reliability
+
+- [ ] Set provider project-level budgets/alerts and the lowest practical hard
+  spend limits in OpenAI and ElevenLabs.
+- [ ] Add an edge/IP rate limit in Caddy or another trusted layer. Better Auth API
+  key rate limiting is deliberately disabled in `packages/auth/src/index.ts`.
+  The monthly quota limits successful requests, not every abusive attempt.
+- [ ] Verify UpCloud automated backup retention and perform one restore drill.
+- [ ] Choose monitoring and alert destinations for uptime, container restarts,
+  provider failures, database capacity, and provider spend.
+- [ ] Keep all production secrets out of Git and client-side code. Rotate any key
+  that has ever appeared in a commit, log, screenshot, shell history, or chat.
+
+## 1. Create the production accounts
+
+Use organization/project accounts rather than personal defaults where the
+provider supports them. Store recovery codes and ownership information in the
+team password manager.
+
+- [ ] Domain/DNS access for `arvoitus.com`.
+- [ ] UpCloud VPS access and a Managed PostgreSQL database in the same zone.
+- [ ] OpenAI API project with billing, scoped production API key, budget, and
+  alerts.
+- [ ] ElevenLabs production API key with usage alerts/limits.
+- [ ] Polar production organization with business/support information.
+- [ ] GitHub repository release access. The repository is public, so its release
+  assets can be downloaded without a GitHub account.
+- [ ] A support mailbox monitored by a real person.
+- [ ] Uptime/error monitoring and an incident notification channel.
+
+Record the owner, renewal date, billing account, and recovery method for every
+account. Never put secret values in this file.
+
+## 2. Configure and test Polar donations
+
+Polar Sandbox and Production are isolated: tokens, products, customers, and
+orders from one environment do not exist in the other.
+
+### Sandbox first
+
+1. Create a Polar Sandbox organization.
+2. Create one **one-time** product named **Support Mine Yapping**. Copy its UUID.
+3. In Polar organization settings, create a sandbox Organization Access Token.
+   Keep it server-side. Give it only the scopes needed for checkout sessions.
+4. Configure the deployed staging server with:
+
+   ```dotenv
+   POLAR_ACCESS_TOKEN=<sandbox organization access token>
+   POLAR_SERVER=sandbox
+	 POLAR_SUCCESS_URL=https://staging.example.com
+   ```
+
+5. Sign in as an admin, open **Admin → Settings**, set **Polar donation product ID**
+   to the sandbox product UUID, and save. Until this value exists, checkout is
+   disabled for signed-in users.
+6. Click **Donate** while signed out and signed in, complete each sandbox
+   sandbox checkout, and confirm return to the landing page.
+7. Verify successful, failed, canceled, and refunded donations never change the
+   donor's features or monthly quota.
+
+### Move to live payments
+
+1. Complete Polar organization details and production onboarding. Polar acts as
+   Merchant of Record, but the seller must still complete identity/KYC and payout
+   setup. Polar notes that the first payout review can take up to 14 days, so do
+   not schedule launch before approval capacity is known.
+2. Create the real one-time **Support Mine Yapping** product in Production.
+   Confirm its currency, amount, tax display, refund wording, and visibility.
+3. Create a new **production** Organization Access Token in Polar. Never reuse
+   the sandbox token.
+4. Put the production token and `POLAR_SERVER=production` in
+   `apps/server/.env`. Use:
+
+   ```dotenv
+	 POLAR_SUCCESS_URL=https://yapping.arvoitus.com
+   ```
+
+5. Deploy/restart the API, then put the **production** product UUID in
+   **Admin → Settings**. A sandbox UUID will not work in Production.
+6. Make one controlled live donation. Verify checkout, receipt, unchanged quota,
+   and the Polar order/payout record. Refund it if appropriate.
+
+Useful official references:
+
+- [Polar + Better Auth integration](https://polar.sh/docs/integrate/sdk/adapters/better-auth)
+- [Polar Organization Access Tokens](https://polar.sh/docs/integrate/oat)
+- [Polar account reviews](https://polar.sh/docs/merchant-of-record/account-reviews)
+
+## 3. Prepare production infrastructure
+
+Follow `DEPLOY.md` for DNS, UpCloud PostgreSQL, Docker Compose, Caddy, migrations,
+health checks, operations, and rollback, with these corrections/additions.
+
+### Production environment
+
+Create `apps/server/.env` on the VPS with mode `0600`:
+
+```dotenv
+DATABASE_URL=postgres://USER:PASSWORD@HOST:PORT/mineyapping?sslmode=require
+BETTER_AUTH_SECRET=<at least 32 random characters>
+BETTER_AUTH_URL=https://yapping.arvoitus.com
+CORS_ORIGIN=https://yapping.arvoitus.com
+OPENAI_API_KEY=<production project key>
+ELEVENLABS_API_KEY=<production key>
+POLAR_ACCESS_TOKEN=<production organization access token>
+POLAR_SERVER=production
+POLAR_SUCCESS_URL=https://yapping.arvoitus.com/dashboard/account
+DISABLE_SIGN_UP=false
+NODE_ENV=production
+```
+
+Generate the auth secret once with `openssl rand -base64 48`. Back it up securely;
+changing it invalidates existing sessions. `VITE_API_URL` is compiled into the
+web image and is already set to `https://yapping.arvoitus.com` in
+`docker-compose.yml`.
+
+### Deploy in the safe order
+
+1. Point DNS to the VPS and verify ports 80/443 are reachable.
+2. Provision the database, TLS connection, allowlist/private network, backups,
+   and capacity alerts.
+3. Clone the repository into `/opt/mine-yapping`.
+4. Install the environment file above.
+5. Build images, but do not advertise the site yet:
+
+   ```bash
+   docker compose build
+   docker compose up -d
+   ```
+
+6. Apply checked-in migrations before serving new code:
+
+   ```bash
+   docker compose run --rm --workdir /app/packages/db server bunx drizzle-kit migrate
+   ```
+
+7. Configure and validate Caddy exactly as described in `DEPLOY.md`, then reload
+   it and verify TLS.
+8. Create the first account, promote it to `admin` directly in PostgreSQL, sign
+   out, and sign back in so the new role is in the session.
+9. In **Admin → Settings**, set the monthly request count shared by every user
+   and the live Polar donation product UUID.
+10. Create at least one enabled global `*` fallback personality. The migration
+    supplies one; verify it was not deleted.
+11. Keep the previous known-good commit and database backup identifier recorded
+    before every later deployment.
+
+Do not expose ports 31415 or 4001 publicly. They must remain bound to
+`127.0.0.1`; Caddy is the public entry point.
+
+## 4. Build and publish the Fabric mod
+
+The current release targets:
+
+- Minecraft Java Edition `26.1.2`
+- Fabric Loader `>=0.19.3`
+- Fabric API `0.155.2+26.1.2` at build time
+- Java `>=25`
+- Mod version `0.1.0`
+- Production API `https://yapping.arvoitus.com/api/converse`
+
+### Version and release build
+
+1. Confirm the backend is backward-compatible with the mod being released.
+2. Update `mod_version` in `minecraft-mod/gradle.properties` for every public
+   release. Use the same version in the Git tag and release title.
+3. If Minecraft, Fabric Loader, or Fabric API changes, update all three version
+   properties, `fabric.mod.json` constraints if needed, README/PUBLISH support
+   text, and test a clean client.
+4. From a clean checkout of the exact release commit, run:
+
+   ```bash
+   bun install --frozen-lockfile
+   bun test apps/server/src
+   bun run check-types
+   bun run build
+   cd minecraft-mod
+   ./gradlew clean build
+   shasum -a 256 build/libs/mineyapping-<version>.jar
+   ```
+
+   On Windows use `gradlew.bat clean build` and
+   `certutil -hashfile build\\libs\\mineyapping-<version>.jar SHA256`.
+
+5. Test the resulting jar, not a development run configuration, in a clean
+   Minecraft instance with only matching Fabric Loader, Fabric API, and the jar.
+6. Test sign-up/login, `/login`, text conversation, microphone conversation,
+   TTS playback, quota rejection, invalid/revoked key, donation checkout, restart,
+   and multiplayer on a server that has no Mine Yapping server mod.
+7. Scan the jar and inspect it to ensure it contains no API key, `.env`, database
+   URL, source map with secrets, or third-party game files.
+
+### GitHub Release and permanent download link
+
+GitHub Releases is already available because the repository is public. Use one
+release asset with a stable filename so the site link never changes:
+
+1. Copy `mineyapping-<version>.jar` to `mineyapping.jar` for uploading. Do not
+   commit the copy; `build/` is already ignored.
+2. Push the release commit and an annotated tag such as `v0.1.0`.
+3. On GitHub open **Releases → Draft a new release**, choose the tag, title it
+   `Mine Yapping v0.1.0`, and attach `mineyapping.jar`.
+4. Release notes must include the SHA-256 checksum, supported Minecraft/Fabric/
+   Java versions, install steps, changes, known limitations, privacy/terms links,
+   support link, and the unofficial-Minecraft disclaimer.
+5. Mark untested builds as pre-releases. For a production version, publish only
+   after the end-to-end test passes.
+6. Verify these URLs in a signed-out/private browser:
+
+   ```text
+   https://github.com/JoniJuntto/mine-yapping/releases/latest
+   https://github.com/JoniJuntto/mine-yapping/releases/latest/download/mineyapping.jar
+   ```
+
+7. Use the second URL for every **Download mod** button. Never link to a local
+   Gradle build path or GitHub's automatically generated source archive.
+
+GitHub documents binary attachments in
+[Managing releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository).
+
+Optional later: publish the same signed/checksummed jar on Modrinth or CurseForge
+for discovery and launcher installation. Do not add a second channel until the
+GitHub release/update process is reliable.
+
+## 5. End-user instructions
+
+Publish this section on the website alongside the download button.
+
+### Requirements
+
+- A legitimate Minecraft: Java Edition installation matching the version listed
+  on the download page. Bedrock Edition is not supported.
+- A desktop Windows, macOS, or Linux computer. Android/PojavLauncher is not
+  supported.
+- Fabric Loader matching the listed Minecraft version.
+- Fabric API matching the listed Minecraft version.
+- A working microphone and audio output.
+
+### Install
+
+1. Install Fabric Loader for the supported Minecraft version using the official
+   [Fabric installer](https://fabricmc.net/use/installer/).
+2. Download the matching Fabric API jar from an official Fabric distribution
+   link.
+3. Launch the Fabric profile once, then close Minecraft.
+4. Download `mineyapping.jar` from the Mine Yapping website. Do not download the
+   repository's “Source code” zip/tarball.
+5. Put both the Fabric API jar and `mineyapping.jar` in the `mods` folder:
+
+   | OS | Default folder |
+   | --- | --- |
+   | Windows | `%APPDATA%\.minecraft\mods` |
+   | macOS | `~/Library/Application Support/minecraft/mods` |
+   | Linux | `~/.minecraft/mods` |
+
+   Create `mods` if it does not exist. Remove older Mine Yapping jars so only one
+   version is installed.
+6. Start Minecraft with the Fabric profile. Confirm **MineYapping** appears in
+   the loaded mods list/log and grant microphone access if the OS asks.
+
+### Connect the account
+
+1. Open `https://yapping.arvoitus.com`, create an account, and sign in.
+2. Open **Dashboard → Account** and select **Create key** under **Minecraft API
+   keys**.
+3. Copy the key immediately. It is shown only once. Treat it like a password.
+4. Join any single-player world or multiplayer server and run:
+
+   ```text
+   /login my_YOUR_KEY
+   ```
+
+   This is a client command and should not be sent to the Minecraft server. The
+   key is saved locally in `.minecraft/config/mine-yapping.json`.
+5. To disconnect a computer, revoke the key under **Dashboard → Account**. Create
+   a separate key for each computer so one device can be revoked safely.
+
+### Use
+
+1. Look directly at a living mob within 8 blocks, or stand near one.
+2. Hold **V**, speak, then release. The key is rebindable under Minecraft
+   **Controls → MineYapping**.
+3. Wait for `Thinking...`; the answer appears in local chat and plays through the
+   computer's audio output.
+4. Typed chat while targeting/near a mob is also treated as a mob conversation
+   and is not sent as normal server chat. Move away from mobs to send ordinary
+   chat.
+5. Create custom mob personalities from the dashboard. `*` is the fallback type.
+
+Never paste an API key into server chat, Discord, screenshots, or support tickets.
+Support should ask only for the visible key prefix and account email, never the
+full key.
+
+### User troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| Fabric reports incompatible mod | Use the exact Minecraft, Loader, Fabric API, and Java versions on the download page. |
+| Mod does not load | Confirm both jars are directly in `mods`, not zipped or nested, and remove old duplicate versions. |
+| `Run /login <token>` | Create a dashboard key and run the client command in a world. |
+| `Invalid or revoked Minecraft API key` | Create a new key, run `/login` again, and revoke the old one. |
+| `Look at a mob or move within 8 blocks` | Target a living mob within range. |
+| `Microphone unavailable` | Grant OS microphone permission, select a working default input, then restart Minecraft. |
+| `Monthly free usage limit reached` / HTTP 402 | Wait for the UTC calendar-month reset. Donations do not increase the limit. |
+| HTTP 502 mentioning OpenAI/ElevenLabs | Service/provider incident; retry later and check the status page. |
+| Speech playback failed | Select a working default output device and restart Minecraft. |
+| Android/PojavLauncher | Unsupported in the current release. |
+
+## 6. Pre-launch verification
+
+Run all checks against production after deployment and before announcing it.
+
+### Automated
+
+```bash
+bun install --frozen-lockfile
+bun test apps/server/src
+bun run check-types
+bun run build
+cd minecraft-mod && ./gradlew clean build
+```
+
+Do not run `bun run check` as a read-only release check: the current script uses
+`biome check --write` and may modify files. Use `bunx biome check .` when a
+non-writing check is wanted.
+
+### Website, auth, and admin
+
+- [ ] `https://yapping.arvoitus.com` loads over valid TLS on desktop and mobile.
+- [ ] Sign-up, sign-in, sign-out, session persistence, and wrong-password errors
+  work in a private browser.
+- [ ] A normal user cannot open `/admin` or call `/api/admin/*`.
+- [ ] Admin overview, users, global personalities, bans, API-key revocation, free
+  allowance, and Polar donation product settings work.
+- [ ] Users can create/edit/delete only their own personalities and keys.
+- [ ] Download, legal, support, donation, and refund links are visible and
+  work without signing in.
+- [ ] Security headers, CORS, cookie `Secure`/`HttpOnly`/`SameSite`, and request
+  body limits are correct through Caddy.
+
+### Donations
+
+- [ ] Checkout uses the one-time production donation product and expected amount/currency.
+- [ ] Successful checkout returns to the landing page.
+- [ ] Successful, failed, canceled, and refunded donations never change features
+  or the monthly request limit.
+- [ ] Every user is rejected at the same exact monthly limit.
+- [ ] Refund, receipt, support, and reconciliation procedures are written down.
+
+### Mod and API
+
+- [ ] The public `latest/download/mineyapping.jar` URL works signed out and its
+  SHA-256 matches the release notes.
+- [ ] A fresh installation works on every advertised OS/version combination.
+- [ ] One real voice conversation succeeds end to end over production TLS.
+- [ ] Text conversation, TTS, memory, personal/global personality priority, API
+  key revocation, quota response, timeout, and provider failure were exercised.
+- [ ] No provider secret is present in the jar or browser bundle.
+- [ ] Caddy/API logs do not contain audio, transcripts, passwords, or full API
+  keys.
+
+### Operations
+
+- [ ] Both containers are healthy and restart after a controlled reboot.
+- [ ] Database backup is current and a restore has been proven.
+- [ ] Alerts reach the on-call person.
+- [ ] OpenAI, ElevenLabs, Polar, VPS, and database dashboards are accessible to a
+  second recovery owner.
+- [ ] Rollback to the previous container commit has been rehearsed.
+- [ ] A short public status/incident message template exists.
+
+## 7. Launch
+
+1. Freeze code except for launch blockers.
+2. Tag and publish the tested mod release.
+3. Deploy the matching backend/web commit and run migrations.
+4. Re-run the production smoke tests above.
+5. Enable the production Polar product ID only after checkout/legal/support pages
+   are live.
+6. Announce to a small beta group first. Watch errors, latency, donations,
+   refunds, quotas, and provider spend for at least one full usage cycle.
+7. Open the wider launch only if no data-loss, donation, or spend
+   issue remains.
+
+## 8. Routine release procedure
+
+For every application or mod update:
+
+1. Review dependency/security updates and Minecraft/Fabric compatibility.
+2. Run the automated and end-to-end checks.
+3. Back up the database and record the deployed commit.
+4. Apply migrations, deploy API/web, and smoke test.
+5. Publish the mod only after its required backend is live.
+6. Keep older supported mod versions downloadable. State minimum compatible
+   backend/mod versions in release notes.
+7. Monitor logs and provider spend; rollback using `DEPLOY.md` if needed.
+8. Update privacy/terms/subprocessor disclosures whenever data flow or providers
+   change.
+
+Monthly:
+
+- Reconcile Polar donation orders/refunds/payouts.
+- Review OpenAI/ElevenLabs cost per successful request and user outliers.
+- Review failed requests, latency, disk/database growth, backup results, expired
+  secrets/certificates, admin accounts, and revoked staff access.
+- Test one new sign-up, donation checkout, API key, and real conversation.
+
+For every Minecraft release, verify compatibility before changing the advertised
+version. Never claim broad compatibility from the current `>=26.1` manifest
+alone; test the exact release.
+
+## 9. Incident and rollback basics
+
+- **Donation checkout fails:** remove the Polar product ID in **Admin → Settings**
+  to hide signed-in checkout, investigate, and do not delete payment records.
+- **Provider spend spike:** disable public traffic or set monthly requests
+  to `0`, revoke compromised keys, apply provider caps, then investigate. An
+  edge/IP block may still be needed for abusive request floods that never reach
+  a successful quota count.
+- **Compromised app secret:** rotate the affected provider/API secret and restart
+  the server. Rotating `BETTER_AUTH_SECRET` signs users out.
+- **Bad application deploy:** use the previous commit rollback steps in
+  `DEPLOY.md`. Do not reverse a database migration unless a tested down migration
+  exists; prefer rolling application code forward to schema compatibility.
+- **Bad mod release:** mark the GitHub release as affected, publish a fixed version
+  with a new tag, and update the download page. Do not silently replace a released
+  binary under the same version/checksum.
+- **Data/privacy incident:** preserve evidence, restrict access, contact the legal/
+  privacy owner, and follow applicable notification deadlines.
+
+## Current verified repository state
+
+Verified locally on 2026-08-14:
+
+- `bun test apps/server/src`: 10 tests passed.
+- `bun run check-types`: passed.
+- `bun run build`: passed for server, web app, and docs (docs emitted a large
+  chunk warning only).
+- `minecraft-mod/gradlew build`: passed.
+- Built jar: `minecraft-mod/build/libs/mineyapping-0.1.0.jar`.
+- Local jar SHA-256:
+  `087ec91f420337fa46a2bb6f44a7445900cf1707341029060f47111771b8658a`.
+
+That checksum describes only the local build inspected on that date. Rebuild from
+the tagged release commit and publish the new checksum; do not copy this value
+into release notes without comparing the actual uploaded asset.

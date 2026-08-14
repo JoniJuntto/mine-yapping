@@ -1,0 +1,1 @@
+ALTER TABLE "user_provider_key" ADD COLUMN "encrypted_elevenlabs_key" text NOT NULL;

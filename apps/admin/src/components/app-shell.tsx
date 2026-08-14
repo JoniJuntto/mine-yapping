@@ -43,7 +43,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 				</div>
 			</header>
 			<main className="mx-auto w-full max-w-6xl p-5 md:p-10">{children}</main>
+			<LegalFooter />
 		</>
+	);
+}
+
+export function LegalFooter() {
+	return (
+		<footer className="mx-auto max-w-6xl px-5 py-8 text-center text-ink/60 text-sm">
+			NOT AN OFFICIAL MINECRAFT SERVICE. NOT APPROVED BY OR ASSOCIATED WITH
+			MOJANG OR MICROSOFT.
+		</footer>
 	);
 }
 
