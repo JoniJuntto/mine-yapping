@@ -14,7 +14,7 @@ on vanilla and modded multiplayer servers with only you having it installed.
 [Bun server]  /api/converse ────────────────────────┘
                  ├─ POST /v1/audio/transcriptions   (gpt-transcribe)   → transcript
                  ├─ POST /v1/responses              (gpt-5.6-luna)     → in-character reply
-                 └─ POST /v1/audio/speech           (tts-1, "onyx")    → WAV, base64
+                 └─ POST /v1/text-to-speech/:voice  (ElevenLabs)      → WAV, base64
                                                     │
 [Fabric mod]  chat lines + audio playback ◄─────────┘
 ```
@@ -35,7 +35,8 @@ on vanilla and modded multiplayer servers with only you having it installed.
   so a given cow remembers what you just said to it. Memory is in-process and
   capped at 1000 entities (oldest evicted).
 - **Spoken replies** — TTS audio is returned base64-encoded and played back
-  client-side on a virtual thread, so the game loop never blocks.
+  client-side on a virtual thread, so the game loop never blocks. Each mob gets
+  a random ElevenLabs voice on first contact and keeps it for the server process.
 - **Chat transcript** — you see `You: <transcript>` and `<Mob>: <reply>` as
   colored system messages, visible only to you.
 
@@ -43,8 +44,8 @@ on vanilla and modded multiplayer servers with only you having it installed.
 
 - **Elysia + Bun** HTTP API with typed request validation (`@sinclair/typebox`).
 - `POST /api/converse` — multipart endpoint; rejects audio over **5 MB** (413),
-  malformed bodies (422), and surfaces upstream OpenAI failures as **502** with
-  the provider's message.
+  malformed bodies (422), and surfaces upstream provider failures as **502**
+  with the provider's message.
 - `GET /` — health check, returns `OK`.
 - **Structured LLM output** — the reply is requested via a strict `json_schema`
   so parsing can't drift.
@@ -103,6 +104,7 @@ startup if any is missing:
 | `POLAR_SUCCESS_URL` | valid URL |
 | `CORS_ORIGIN` | valid URL |
 | `OPENAI_API_KEY` | required for `/api/converse` |
+| `ELEVENLABS_API_KEY` | required for reply speech |
 | `NODE_ENV` | optional, defaults to `development` |
 
 To skip validation temporarily (e.g. running only the tests):
@@ -129,8 +131,8 @@ bun run dev            # everything (server + docs)
 bun test
 ```
 
-Covers `extractResponseText` — the parser that digs the model's text out of the
-OpenAI Responses payload, including the empty-output failure case.
+Covers the OpenAI response parser, typed-chat transcription bypass, and stable
+per-entity voice assignment.
 
 > `bun test` from the repo root also picks up a stale compiled copy under
 > `apps/server/dist/`, so you may see each test twice ("4 tests across 2 files").
@@ -214,6 +216,7 @@ Loader ≥ 0.19.3 and Fabric API.
 | `Hold V a little longer so I can hear you.` | Under ~1 KB captured (roughly 30 ms) |
 | `Conversation failed: Connection refused` | Backend not running on port 31415 |
 | `Conversation failed (502): OpenAI 401 ...` | Bad or missing `OPENAI_API_KEY` |
+| `Conversation failed (502): ElevenLabs 401 ...` | Bad or missing `ELEVENLABS_API_KEY` |
 | `Speech playback failed: ...` | JVM couldn't play the returned WAV |
 
 Test conversation memory by asking a follow-up question that only makes sense

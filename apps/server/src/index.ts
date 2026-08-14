@@ -30,7 +30,12 @@ new Elysia()
 			if (body.audio && body.audio.size > 5 * 1024 * 1024)
 				return status(413, "Audio must be under 5 MB");
 			try {
-				return await converse(input, body, env.OPENAI_API_KEY);
+				return await converse(
+					input,
+					body,
+					env.OPENAI_API_KEY,
+					env.ELEVENLABS_API_KEY,
+				);
 			} catch (cause) {
 				console.error(cause);
 				return status(

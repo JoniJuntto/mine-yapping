@@ -1,6 +1,8 @@
 type Turn = { player: string; mob: string };
 
 const histories = new Map<string, Turn[]>();
+const entityVoices = new Map<string, string>();
+let availableVoices: Promise<string[]> | undefined;
 
 const RESPONSE_SCHEMA = {
 	type: "object",
@@ -39,6 +41,52 @@ const openAI = async (path: string, apiKey: string, init: RequestInit) => {
 	return response;
 };
 
+const elevenLabs = async (path: string, apiKey: string, init?: RequestInit) => {
+	const response = await fetch(`https://api.elevenlabs.io${path}`, {
+		...init,
+		headers: { "xi-api-key": apiKey, ...init?.headers },
+	});
+	if (!response.ok) {
+		throw new Error(
+			`ElevenLabs ${response.status}: ${(await response.text()).slice(0, 300)}`,
+		);
+	}
+	return response;
+};
+
+const getAvailableVoices = (apiKey: string) => {
+	availableVoices ??= elevenLabs(
+		"/v2/voices?page_size=100&include_total_count=false",
+		apiKey,
+	)
+		.then(async (response) => {
+			const { voices } = (await response.json()) as {
+				voices?: Array<{ voice_id?: string }>;
+			};
+			const ids = voices?.flatMap(({ voice_id }) =>
+				voice_id ? [voice_id] : [],
+			);
+			if (!ids?.length) throw new Error("ElevenLabs returned no voices");
+			return ids;
+		})
+		.catch((cause) => {
+			availableVoices = undefined;
+			throw cause;
+		});
+	return availableVoices;
+};
+
+export const voiceFor = (entityId: string, voiceIds: string[]) => {
+	const remembered = entityVoices.get(entityId);
+	if (remembered) return remembered;
+	const voice = voiceIds[Math.floor(Math.random() * voiceIds.length)];
+	if (!voice) throw new Error("ElevenLabs returned no voices");
+	entityVoices.set(entityId, voice);
+	if (entityVoices.size > 1_000)
+		entityVoices.delete(entityVoices.keys().next().value as string);
+	return voice;
+};
+
 export const extractResponseText = (response: unknown): string => {
 	if (!response || typeof response !== "object" || !("output" in response)) {
 		throw new Error("OpenAI returned no output");
@@ -58,14 +106,15 @@ export const extractResponseText = (response: unknown): string => {
 export async function converse(
 	input: File | string,
 	context: MobContext,
-	apiKey: string,
+	openAiApiKey: string,
+	elevenLabsApiKey: string,
 ): Promise<MobReply> {
-	const transcript = await transcribe(input, apiKey);
+	const transcript = await transcribe(input, openAiApiKey);
 	if (!transcript) throw new Error("No speech was detected");
 
 	const history = histories.get(context.entityId) ?? [];
 	const response = await (
-		await openAI("/responses", apiKey, {
+		await openAI("/responses", openAiApiKey, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -100,16 +149,19 @@ export async function converse(
 		MobReply,
 		"transcript" | "audio"
 	>;
-	const speech = await openAI("/audio/speech", apiKey, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-			model: "tts-1",
-			voice: "onyx",
-			input: reply.reply,
-			response_format: "wav",
-		}),
-	});
+	const voiceId = voiceFor(
+		context.entityId,
+		await getAvailableVoices(elevenLabsApiKey),
+	);
+	const speech = await elevenLabs(
+		`/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=wav_24000`,
+		elevenLabsApiKey,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ text: reply.reply }),
+		},
+	);
 
 	histories.set(
 		context.entityId,

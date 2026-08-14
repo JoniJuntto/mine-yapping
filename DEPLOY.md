@@ -21,6 +21,7 @@ Internet ──► Caddy ──────────────────�
              (host, global Caddyfile)                          (container)
                                                                     │
                                                                     ├──► api.openai.com
+                                                                    ├──► api.elevenlabs.io
                                                                     └──► UpCloud Managed PostgreSQL
 ```
 
@@ -34,6 +35,7 @@ firewall is permissive.
 - [ ] DNS control for `arvoitus.com`
 - [ ] An UpCloud Managed PostgreSQL instance (or permission to create one)
 - [ ] An OpenAI API key with billing enabled
+- [ ] An ElevenLabs API key
 - [ ] Port `31415` free on the VPS (verified in step 5)
 
 ---
@@ -80,15 +82,12 @@ If you attached via private network, use the private host address instead.
 
 ## Step 3 — Get the code onto the VPS
 
-Pick a directory consistent with your other projects (adjust if you use
-`/opt` or `/home/deploy`):
-
 ```bash
 ssh your-vps
-sudo mkdir -p /srv/mine-yapping
-sudo chown "$USER":"$USER" /srv/mine-yapping
-git clone <your-repo-url> /srv/mine-yapping
-cd /srv/mine-yapping
+sudo mkdir -p /opt/mine-yapping
+sudo chown "$USER":"$USER" /opt/mine-yapping
+git clone <your-repo-url> /opt/mine-yapping
+cd /opt/mine-yapping
 ```
 
 ## Step 4 — Environment file
@@ -106,6 +105,7 @@ POLAR_ACCESS_TOKEN=REPLACE_ME
 POLAR_SUCCESS_URL=https://yapping.arvoitus.com/success
 CORS_ORIGIN=https://yapping.arvoitus.com
 OPENAI_API_KEY=sk-REPLACE_ME
+ELEVENLABS_API_KEY=sk-REPLACE_ME
 NODE_ENV=production
 EOF
 
@@ -145,7 +145,7 @@ three places — they must agree:
 ## Step 6 — Build and start
 
 ```bash
-cd /srv/mine-yapping
+cd /opt/mine-yapping
 docker compose build
 docker compose up -d
 ```
@@ -242,7 +242,7 @@ curl -i -X POST https://yapping.arvoitus.com/api/converse
 curl -sI https://yapping.arvoitus.com/ | head -1
 ```
 
-Full round trip with a real recording (spends OpenAI credit):
+Full round trip with a real recording (spends OpenAI and ElevenLabs credit):
 
 ```bash
 curl -X POST https://yapping.arvoitus.com/api/converse \
@@ -288,7 +288,8 @@ Fabric API. No port number is needed in the URL — Caddy serves it on standard
 ## Protecting the endpoint
 
 **`/api/converse` is unauthenticated.** Once it's public, anyone who finds the URL
-can spend your OpenAI budget — each request costs transcription + LLM + TTS.
+can spend your OpenAI and ElevenLabs budgets — each request costs transcription,
+LLM, and TTS.
 Before sharing the domain, add at least one of these.
 
 **Option A — Rate limit at Caddy** (needs the
@@ -325,14 +326,14 @@ Add the matching header in `sendConversation` in the mod:
 .header("X-Yapping-Key", "YOUR_SHARED_SECRET")
 ```
 
-**Option C — Set a hard spend cap** in the OpenAI dashboard
-(Billing → Limits). Do this regardless of A or B; it's the backstop that turns a
-runaway bill into a broken feature.
+**Option C — Set hard spend caps** in the OpenAI and ElevenLabs dashboards. Do
+this regardless of A or B; it's the backstop that turns a runaway bill into a
+broken feature.
 
 ## Updating a deployment
 
 ```bash
-cd /srv/mine-yapping
+cd /opt/mine-yapping
 git pull
 docker compose build
 docker compose up -d
@@ -370,6 +371,7 @@ setting in the Hub rather than rolling your own.
 | `502 Bad Gateway` from Caddy | Container is down or unhealthy. `docker compose ps`, then check logs. |
 | `drizzle-kit push` hangs | Database unreachable — UpCloud IP allowlist, or missing `?sslmode=require`. |
 | `502` with `OpenAI 401 invalid_api_key` | Bad `OPENAI_API_KEY`. Note this proves the whole chain up to OpenAI works. |
+| `502` with `ElevenLabs 401` | Bad or missing `ELEVENLABS_API_KEY`. |
 | Mod says `Conversation failed: Connection refused` | Mod still points at `localhost` — see step 10. |
 | Port bind fails on `docker compose up` | Another project already holds 31415 — see step 5. |
 | `413` on real recordings | Audio over 5 MB; the app cap. Shorter clips, or raise it in `apps/server/src/index.ts`. |
@@ -377,7 +379,7 @@ setting in the Hub rather than rolling your own.
 ## Rollback
 
 ```bash
-cd /srv/mine-yapping
+cd /opt/mine-yapping
 git log --oneline -5
 git checkout <previous-commit>
 docker compose build
