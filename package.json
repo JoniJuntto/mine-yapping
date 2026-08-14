@@ -1,0 +1,42 @@
+{
+  "name": "mine-yapping",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "dotenv": "^17.4.2",
+      "zod": "^4.4.3",
+      "typescript": "^6.0.3",
+      "@types/bun": "^1.3.14",
+      "better-auth": "1.6.27"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
+    "dev:server": "turbo run dev -F server --",
+    "db:push": "turbo run db:push -F @mine-yapping/db --",
+    "db:studio": "turbo run db:studio -F @mine-yapping/db --",
+    "db:generate": "turbo run db:generate -F @mine-yapping/db --",
+    "db:migrate": "turbo run db:migrate -F @mine-yapping/db --",
+    "check": "biome check --write ."
+  },
+  "dependencies": {
+    "@mine-yapping/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.6",
+    "@mine-yapping/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "turbo": "^2.10.7",
+    "typescript": "catalog:"
+  },
+  "packageManager": "bun@1.3.14"
+}
