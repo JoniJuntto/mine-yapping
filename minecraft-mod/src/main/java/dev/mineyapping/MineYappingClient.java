@@ -179,8 +179,13 @@ public class MineYappingClient implements ClientModInitializer {
 
 	private void play(String audio) {
 		Thread.ofVirtual().name("mineyapping-tts").start(() -> {
-			try (AudioInputStream stream = AudioSystem.getAudioInputStream(
+			try (AudioInputStream decoded = AudioSystem.getAudioInputStream(
 					new ByteArrayInputStream(Base64.getDecoder().decode(audio)))) {
+				byte[] pcm = decoded.readAllBytes();
+				AudioInputStream stream = new AudioInputStream(
+						new ByteArrayInputStream(pcm),
+						decoded.getFormat(),
+						pcm.length / decoded.getFormat().getFrameSize());
 				Clip clip = AudioSystem.getClip();
 				clip.addLineListener(event -> {
 					if (event.getType() == javax.sound.sampled.LineEvent.Type.STOP) clip.close();
