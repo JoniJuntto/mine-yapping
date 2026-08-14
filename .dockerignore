@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+.git
+.turbo
+dist
+**/dist
+build
+**/build
+minecraft-mod
+apps/fumadocs
+!apps/fumadocs/package.json
+*.log
+.DS_Store
+**/.env
+README.md
+DEPLOY.md

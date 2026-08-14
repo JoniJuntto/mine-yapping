@@ -1,0 +1,19 @@
+{
+	"schemaVersion": 1,
+	"id": "mineyapping",
+	"version": "${version}",
+	"name": "MineYapping",
+	"description": "Talk to Minecraft mobs with your voice.",
+	"authors": ["joni"],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["dev.mineyapping.MineYappingClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": ">=26.1",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

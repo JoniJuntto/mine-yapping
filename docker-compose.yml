@@ -1,0 +1,25 @@
+services:
+  server:
+    build: .
+    image: mine-yapping-server:latest
+    container_name: mine-yapping-server
+    restart: unless-stopped
+    env_file: ./apps/server/.env
+    # Bound to loopback only — the global Caddy on this host is the sole entrypoint.
+    ports:
+      - "127.0.0.1:31415:31415"
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "const r = await fetch('http://localhost:31415/').catch(() => null); process.exit(r?.ok ? 0 : 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
