@@ -23,10 +23,14 @@ new Elysia()
 	.post(
 		"/api/converse",
 		async ({ body, status }) => {
-			if (body.audio.size > 5 * 1024 * 1024)
+			const text = body.text?.trim();
+			const input = body.audio ?? text;
+			if (!input || (body.audio && text))
+				return status(400, "Provide either audio or text");
+			if (body.audio && body.audio.size > 5 * 1024 * 1024)
 				return status(413, "Audio must be under 5 MB");
 			try {
-				return await converse(body.audio, body, env.OPENAI_API_KEY);
+				return await converse(input, body, env.OPENAI_API_KEY);
 			} catch (cause) {
 				console.error(cause);
 				return status(
@@ -37,7 +41,8 @@ new Elysia()
 		},
 		{
 			body: t.Object({
-				audio: t.File(),
+				audio: t.Optional(t.File()),
+				text: t.Optional(t.String({ minLength: 1, maxLength: 500 })),
 				entityId: t.String({ minLength: 1, maxLength: 100 }),
 				entityType: t.String({ minLength: 1, maxLength: 100 }),
 				entityName: t.String({ minLength: 1, maxLength: 100 }),

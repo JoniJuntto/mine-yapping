@@ -56,20 +56,11 @@ export const extractResponseText = (response: unknown): string => {
 };
 
 export async function converse(
-	audio: File,
+	input: File | string,
 	context: MobContext,
 	apiKey: string,
 ): Promise<MobReply> {
-	const form = new FormData();
-	form.append("file", audio, "speech.wav");
-	form.append("model", "gpt-transcribe");
-	const transcription = (await (
-		await openAI("/audio/transcriptions", apiKey, {
-			method: "POST",
-			body: form,
-		})
-	).json()) as { text?: string };
-	const transcript = transcription.text?.trim();
+	const transcript = await transcribe(input, apiKey);
 	if (!transcript) throw new Error("No speech was detected");
 
 	const history = histories.get(context.entityId) ?? [];
@@ -132,4 +123,18 @@ export async function converse(
 		...reply,
 		audio: Buffer.from(await speech.arrayBuffer()).toString("base64"),
 	};
+}
+
+export async function transcribe(input: File | string, apiKey: string) {
+	if (typeof input === "string") return input.trim();
+	const form = new FormData();
+	form.append("file", input, "speech.wav");
+	form.append("model", "gpt-transcribe");
+	const transcription = (await (
+		await openAI("/audio/transcriptions", apiKey, {
+			method: "POST",
+			body: form,
+		})
+	).json()) as { text?: string };
+	return transcription.text?.trim();
 }

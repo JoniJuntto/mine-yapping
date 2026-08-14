@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractResponseText } from "./conversation";
+import { extractResponseText, transcribe } from "./conversation";
 
 describe("extractResponseText", () => {
 	test("finds structured output text", () => {
@@ -17,4 +17,8 @@ describe("extractResponseText", () => {
 			"OpenAI returned no text",
 		);
 	});
+});
+
+test("typed chat bypasses speech transcription", async () => {
+	expect(await transcribe("  hello cow  ", "unused")).toBe("hello cow");
 });
