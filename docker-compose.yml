@@ -1,6 +1,8 @@
 services:
   server:
-    build: .
+    build:
+      context: .
+      target: server
     image: mine-yapping-server:latest
     container_name: mine-yapping-server
     restart: unless-stopped
@@ -23,3 +25,24 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        VITE_API_URL: https://yapping.arvoitus.com
+    image: mine-yapping-web:latest
+    container_name: mine-yapping-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4001:4001"
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "const r = await fetch('http://localhost:4001/').catch(() => null); process.exit(r?.ok ? 0 : 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

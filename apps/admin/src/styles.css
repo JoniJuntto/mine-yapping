@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+@theme {
+	--color-ink: #24221f;
+	--color-paper: #f5f0e6;
+	--color-panel: #fffdf8;
+	--color-accent: #39734f;
+}
+
+body {
+	margin: 0;
+	min-width: 320px;
+	min-height: 100vh;
+	background: var(--color-paper);
+	color: var(--color-ink);
+	font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input,
+textarea {
+	font: inherit;
+}
+
+a {
+	color: inherit;
+}
+h1,
+h2,
+h3 {
+	letter-spacing: -0.025em;
+}
+code {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+label:not(.flex-row) {
+	display: grid;
+	gap: 0.35rem;
+	font-weight: 650;
+	font-size: 0.875rem;
+}
+
+input:not([type="checkbox"]),
+textarea {
+	box-sizing: border-box;
+	width: 100%;
+	border: 1px solid color-mix(in srgb, var(--color-ink) 20%, transparent);
+	border-radius: 0.6rem;
+	background: white;
+	padding: 0.65rem 0.8rem;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+	outline-offset: 2px;
+}
+
+textarea {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+small {
+	color: color-mix(in srgb, var(--color-ink) 60%, transparent);
+	font-weight: 400;
+}
+
+@layer components {
+	.card {
+		@apply rounded-2xl border border-black/10 bg-panel p-5 shadow-sm;
+	}
+	.button-primary {
+		@apply inline-flex cursor-pointer items-center justify-center rounded-lg border-0 bg-accent px-4 py-2 font-semibold text-white no-underline disabled:cursor-not-allowed disabled:opacity-50;
+	}
+	.button-secondary {
+		@apply inline-flex cursor-pointer items-center justify-center rounded-lg border border-black/20 bg-panel px-4 py-2 font-semibold no-underline;
+	}
+	.button-danger {
+		@apply inline-flex cursor-pointer items-center justify-center rounded-lg border border-red-300 bg-transparent px-3 py-2 font-semibold text-red-700;
+	}
+	.alert-error {
+		@apply rounded-lg bg-red-100 p-3 text-red-800;
+	}
+	.eyebrow {
+		@apply mb-2 font-bold text-accent text-sm uppercase tracking-[0.18em];
+	}
+}

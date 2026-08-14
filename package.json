@@ -20,6 +20,7 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "dev:server": "turbo run dev -F server --",
+    "dev:admin": "turbo run dev -F admin --",
     "db:push": "turbo run db:push -F @mine-yapping/db --",
     "db:studio": "turbo run db:studio -F @mine-yapping/db --",
     "db:generate": "turbo run db:generate -F @mine-yapping/db --",

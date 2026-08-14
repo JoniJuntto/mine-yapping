@@ -28,15 +28,16 @@ on vanilla and modded multiplayer servers with only you having it installed.
 - **Mob targeting** — whatever you're looking at (crosshair entity hit) takes
   priority; otherwise the nearest living entity within **8 blocks**. Only living,
   alive entities count, and never yourself.
-- **Context-aware replies** — the mob is told its entity type, name, your player
-  name, the dimension, and its current/max health, and is prompted to infer a
-  personality from its type and answer in at most two short sentences.
+- **Personal and global personalities** — prompts can use `{entityName}`, `{entityType}`,
+  `{playerName}`, `{dimension}`, and `{health}` placeholders. Multiple enabled
+  prompts for a mob type are assigned randomly on first contact, with `*` as the
+  fallback type.
 - **Per-mob conversation memory** — the last **4 turns** are kept per entity UUID,
   so a given cow remembers what you just said to it. Memory is in-process and
   capped at 1000 entities (oldest evicted).
 - **Spoken replies** — TTS audio is returned base64-encoded and played back
-  client-side on a virtual thread, so the game loop never blocks. Each mob gets
-  a random ElevenLabs voice on first contact and keeps it for the server process.
+  client-side on a virtual thread, so the game loop never blocks. Each mob keeps
+  its randomly assigned prompt and ElevenLabs voice in PostgreSQL across restarts.
 - **Chat transcript** — you see `You: <transcript>` and `<Mob>: <reply>` as
   colored system messages, visible only to you.
 
@@ -50,20 +51,24 @@ on vanilla and modded multiplayer servers with only you having it installed.
 - **Structured LLM output** — the reply is requested via a strict `json_schema`
   so parsing can't drift.
 - **CORS** restricted to `CORS_ORIGIN`.
+- **Owned personality API** — users manage only their prompts; admins manage global
+  defaults. Every ownership and role check is enforced by the server.
+- **Usage and quotas** — successful and failed requests are recorded without audio
+  or transcripts, with Polar subscriptions checked when the free quota is reached.
 - **Env validation** at boot via `@t3-oss/env-core` + Zod — the process refuses to
   start with missing or malformed config rather than failing at request time.
 
 ### Platform
 
 - **Auth** — Better-Auth with email/password, Drizzle adapter on PostgreSQL,
-  and the Polar plugin for checkout/customer portal (sandbox mode).
+  admin roles, hashed API keys, and Polar checkout/customer portal.
 - **Database** — Drizzle ORM, PostgreSQL, schema-first with push/generate/migrate.
 - **Docs site** — Fumadocs (TanStack Start + Vite) in `apps/fumadocs`.
+- **Web app** — landing, signup/login, user dashboard, billing/API-key account page,
+  and role-protected admin pages on `http://localhost:4001`.
 - **Tooling** — Turborepo, Biome, Bun workspaces, TypeScript.
 
-> The conversation endpoint is currently **unauthenticated** — auth exists in the
-> project but isn't wired to `/api/converse`. Fine for local play; don't expose
-> the server to the internet as-is.
+`/api/converse` requires a hashed, revocable Better Auth API key in `x-api-key`.
 
 ## Project structure
 
@@ -71,6 +76,7 @@ on vanilla and modded multiplayer servers with only you having it installed.
 mine-yapping/
 ├── apps/
 │   ├── server/       # Elysia API — conversation endpoint + auth handler
+│   ├── admin/        # TanStack Start product web app (kept named admin for now)
 │   └── fumadocs/     # Documentation site
 ├── packages/
 │   ├── auth/         # Better-Auth + Polar configuration
@@ -78,7 +84,7 @@ mine-yapping/
 │   ├── env/          # Zod-validated environment
 │   └── config/       # Shared tsconfig
 ├── minecraft-mod/    # Fabric client mod (Java/Gradle, NOT in the Bun workspace)
-├── Dockerfile        # Server image
+├── Dockerfile        # Server and web image targets
 └── docker-compose.yml
 ```
 
@@ -102,9 +108,11 @@ startup if any is missing:
 | `BETTER_AUTH_URL` | valid URL, e.g. `http://localhost:31415` |
 | `POLAR_ACCESS_TOKEN` | any non-empty string works for local play |
 | `POLAR_SUCCESS_URL` | valid URL |
+| `POLAR_SERVER` | optional: `sandbox` (default) or `production` |
 | `CORS_ORIGIN` | valid URL |
 | `OPENAI_API_KEY` | required for `/api/converse` |
 | `ELEVENLABS_API_KEY` | required for reply speech |
+| `DISABLE_SIGN_UP` | optional; set `true` only for an invite/admin-created user model |
 | `NODE_ENV` | optional, defaults to `development` |
 
 To skip validation temporarily (e.g. running only the tests):
@@ -113,13 +121,32 @@ To skip validation temporarily (e.g. running only the tests):
 ### 3. Database
 
 ```bash
-bun run db:push
+bun run db:migrate
 ```
+
+Create the first account while `DISABLE_SIGN_UP=false`:
+
+```bash
+curl -X POST http://localhost:31415/api/auth/sign-up/email \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Admin","email":"admin@example.com","password":"change-me-now"}'
+```
+
+Promote it once with PostgreSQL, then sign in again to refresh the session:
+
+```sql
+UPDATE "user" SET role = 'admin' WHERE email = 'admin@example.com';
+```
+
+Set `CORS_ORIGIN=http://localhost:4001` for the local admin app.
+Set `VITE_API_URL=http://localhost:31415` in `apps/admin/.env` only when overriding
+the development default.
 
 ### 4. Run
 
 ```bash
 bun run dev:server     # server only, http://localhost:31415
+bun run dev:admin      # admin only, http://localhost:4001
 bun run dev            # everything (server + docs)
 ```
 
@@ -131,8 +158,8 @@ bun run dev            # everything (server + docs)
 bun test
 ```
 
-Covers the OpenAI response parser, typed-chat transcription bypass, and stable
-per-entity voice assignment.
+Covers the OpenAI response parser, typed-chat transcription bypass, sticky
+personas, random prompt selection, catch-all fallback, and placeholders.
 
 > `bun test` from the repo root also picks up a stale compiled copy under
 > `apps/server/dist/`, so you may see each test twice ("4 tests across 2 files").
@@ -160,6 +187,7 @@ curl -i -X POST http://localhost:31415/api/converse
 
 # full round trip with a real recording
 curl -X POST http://localhost:31415/api/converse \
+  -H 'x-api-key: my_YOUR_DASHBOARD_KEY' \
   -F audio=@speech.wav \
   -F entityId=test-uuid \
   -F entityType=minecraft:cow \
@@ -191,6 +219,11 @@ cd minecraft-mod
 
 In IntelliJ: **Open** the `minecraft-mod` folder as its own Gradle project, then
 use the generated **Minecraft Client** run configuration.
+
+Create a Minecraft key under **Dashboard → Account**, launch the mod once, and
+paste the key into `.minecraft/config/mine-yapping.json`. Restart Minecraft after
+changing the file. For local testing, set `serverUrl` in that file to
+`http://localhost:31415/api/converse`.
 
 To play with it normally, drop the jar into `.minecraft/mods` alongside Fabric
 Loader ≥ 0.19.3 and Fabric API.
@@ -229,10 +262,10 @@ See **[DEPLOY.md](DEPLOY.md)** for deploying the backend to an UpCloud VPS at
 `yapping.arvoitus.com` — Docker Compose behind the host's global Caddy, with
 UpCloud Managed PostgreSQL.
 
-To run the server container locally:
+To run the server and web containers locally:
 
 ```bash
-docker compose up -d --build   # serves on 127.0.0.1:31415
+docker compose up -d --build   # API :31415, web app :4001 on loopback
 docker compose logs -f server
 ```
 
@@ -243,12 +276,9 @@ docker compose logs -f server
   launchers ship. Moving capture to LWJGL's OpenAL (`ALC11.alcCaptureOpenDevice`)
   is the intended fix — Minecraft already bundles it on every platform, and it
   also enables spatial playback.
-- **Port 31415 is hardcoded** in both the server (`.listen(31415)`) and the mod's
-  endpoint URL — change them together. The default is deliberately off 3000, which
-  collides with Docker/OrbStack and most web dev servers. If something else holds
-  the port, the server exits with `EADDRINUSE` — check with `lsof -i :31415`.
-- **Backend URL is hardcoded** to `http://localhost:31415/api/converse`; there is no
-  in-game config screen yet.
+- **Port 31415 is fixed on the server.** If something else holds it, the server
+  exits with `EADDRINUSE` — check with `lsof -i :31415`. The mod endpoint is
+  configurable in `mine-yapping.json`, but there is no in-game editor yet.
 - **Conversation history is in-process** — it's lost on restart and isn't shared
   across server instances.
 - Audio playback is not positional; the reply plays at full volume regardless of
@@ -267,6 +297,7 @@ versions — do not try to add them.
 | --- | --- |
 | `bun run dev` | Start all apps in development mode |
 | `bun run dev:server` | Start only the server |
+| `bun run dev:admin` | Start only the admin app |
 | `bun run build` | Build all applications |
 | `bun run check-types` | Type-check all workspaces |
 | `bun run check` | Biome format + lint (writes fixes) |

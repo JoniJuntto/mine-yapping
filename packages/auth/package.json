@@ -11,6 +11,7 @@
   },
   "scripts": {},
   "dependencies": {
+    "@better-auth/api-key": "1.6.27",
     "@mine-yapping/db": "workspace:*",
     "@mine-yapping/env": "workspace:*",
     "@polar-sh/better-auth": "^1.8.4",

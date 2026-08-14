@@ -2,14 +2,18 @@ import { cors } from "@elysiajs/cors";
 import { auth } from "@mine-yapping/auth";
 import { env } from "@mine-yapping/env/server";
 import { Elysia, t } from "elysia";
+import { getApiKeyUser } from "./access";
+import { appApi } from "./app-api";
 import { converse } from "./conversation";
+import { promptsApi } from "./prompts";
+import { finalizeUsage, reserveUsage } from "./usage";
 
 new Elysia()
 	.use(
 		cors({
 			origin: env.CORS_ORIGIN,
-			methods: ["GET", "POST", "OPTIONS"],
-			allowedHeaders: ["Content-Type", "Authorization"],
+			methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+			allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
 			credentials: true,
 		}),
 	)
@@ -20,24 +24,54 @@ new Elysia()
 		}
 		return status(405);
 	})
+	.use(appApi)
+	.use(promptsApi)
 	.post(
 		"/api/converse",
-		async ({ body, status }) => {
+		async ({ body, request, status }) => {
+			const startedAt = Date.now();
+			const identity = await getApiKeyUser(request);
+			if ("error" in identity) {
+				return status(identity.forbidden ? 403 : 401, identity.error);
+			}
 			const text = body.text?.trim();
 			const input = body.audio ?? text;
 			if (!input || (body.audio && text))
 				return status(400, "Provide either audio or text");
 			if (body.audio && body.audio.size > 5 * 1024 * 1024)
 				return status(413, "Audio must be under 5 MB");
+			const inputType = body.audio ? "audio" : "text";
+			let reservationId: string | null;
 			try {
-				return await converse(
+				reservationId = await reserveUsage(identity.user.id, inputType);
+			} catch (cause) {
+				console.error("Could not verify quota:", cause);
+				return status(503, "Could not verify subscription or usage limit");
+			}
+			if (!reservationId) {
+				return status(402, "Monthly free usage limit reached");
+			}
+			try {
+				const result = await converse(
 					input,
 					body,
 					env.OPENAI_API_KEY,
 					env.ELEVENLABS_API_KEY,
+					identity.user.id,
 				);
+				const { usage, ...reply } = result;
+				await finalizeUsage(reservationId, {
+					successful: true,
+					...usage,
+					latencyMs: Date.now() - startedAt,
+				}).catch((cause) => console.error("Could not finalize usage:", cause));
+				return reply;
 			} catch (cause) {
 				console.error(cause);
+				await finalizeUsage(reservationId, {
+					successful: false,
+					latencyMs: Date.now() - startedAt,
+				}).catch((error) => console.error("Could not finalize usage:", error));
 				return status(
 					502,
 					cause instanceof Error ? cause.message : "Conversation failed",

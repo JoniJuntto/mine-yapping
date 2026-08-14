@@ -103,6 +103,7 @@ BETTER_AUTH_SECRET=REPLACE_ME
 BETTER_AUTH_URL=https://yapping.arvoitus.com
 POLAR_ACCESS_TOKEN=REPLACE_ME
 POLAR_SUCCESS_URL=https://yapping.arvoitus.com/success
+POLAR_SERVER=production
 CORS_ORIGIN=https://yapping.arvoitus.com
 OPENAI_API_KEY=sk-REPLACE_ME
 ELEVENLABS_API_KEY=sk-REPLACE_ME
@@ -140,7 +141,7 @@ three places — they must agree:
 
 1. `apps/server/src/index.ts` → `.listen(31415, ...)`
 2. `docker-compose.yml` → `ports:` and the healthcheck URL
-3. `minecraft-mod/.../MineYappingClient.java` → `CONVERSATION_ENDPOINT`
+3. `/etc/caddy/Caddyfile` → API `reverse_proxy` upstream
 
 ## Step 6 — Build and start
 
@@ -171,17 +172,17 @@ Caddy or DNS.
 
 ## Step 7 — Create the database schema
 
-Push the Drizzle schema to the managed database. This runs in a one-off
+Apply the Drizzle migrations to the managed database. This runs in a one-off
 container so you don't need Bun or drizzle-kit installed on the host:
 
 ```bash
-docker compose run --rm --workdir /app/packages/db server bunx drizzle-kit push
+docker compose run --rm --workdir /app/packages/db server bunx drizzle-kit migrate
 ```
 
-Answer the interactive prompts if it asks about creating tables. This creates the
-Better Auth tables (`user`, `session`, `account`, `verification`).
+This applies the checked-in migrations, including Better Auth, API-key,
+personality, settings, and usage tables.
 
-> If it hangs on *"Pulling schema from database"*, the database is unreachable —
+> If it hangs while connecting, the database is unreachable —
 > almost always the UpCloud IP allowlist or a missing `?sslmode=require`.
 
 ## Step 8 — Add the Caddy site block
@@ -198,12 +199,15 @@ yapping.arvoitus.com {
 		max_size 6MB
 	}
 
-	reverse_proxy 127.0.0.1:31415 {
+	@api path /api/*
+	reverse_proxy @api 127.0.0.1:31415 {
 		# A single request runs transcription + LLM + TTS, so it can take a while.
 		transport http {
 			read_timeout 120s
 		}
 	}
+
+	reverse_proxy 127.0.0.1:4001
 }
 ```
 
@@ -246,6 +250,7 @@ Full round trip with a real recording (spends OpenAI and ElevenLabs credit):
 
 ```bash
 curl -X POST https://yapping.arvoitus.com/api/converse \
+  -H 'x-api-key: my_YOUR_DASHBOARD_KEY' \
   -F audio=@speech.wav \
   -F entityId=test-uuid \
   -F entityType=minecraft:cow \
@@ -256,18 +261,10 @@ curl -X POST https://yapping.arvoitus.com/api/converse \
 # → {"transcript":"...","reply":"...","audio":"<base64 wav>"}
 ```
 
-## Step 10 — Point the mod at production
+## Step 10 — Connect the mod
 
-The mod ships with the backend URL hardcoded to localhost. Before building jars
-for anyone else, edit
-`minecraft-mod/src/main/java/dev/mineyapping/MineYappingClient.java`:
-
-```java
-private static final URI CONVERSATION_ENDPOINT =
-        URI.create("https://yapping.arvoitus.com/api/converse");
-```
-
-Then rebuild and distribute:
+The checked-in mod already targets `https://yapping.arvoitus.com/api/converse`.
+Build and distribute it:
 
 ```bash
 cd minecraft-mod
@@ -275,60 +272,17 @@ cd minecraft-mod
 # → build/libs/mineyapping-0.1.0.jar
 ```
 
-Players drop that jar into `.minecraft/mods` alongside Fabric Loader ≥ 0.19.3 and
-Fabric API. No port number is needed in the URL — Caddy serves it on standard
-443. Java's `HttpClient` handles the TLS automatically.
-
-> Keep a local-dev build around by leaving `localhost:31415` in your working copy
-> and only changing it on release branches, or the mod will hit production every
-> time you test.
+Players create an account and a Minecraft API key in **Dashboard → Account**.
+After launching once, they paste that key into
+`.minecraft/config/mine-yapping.json` and restart Minecraft.
 
 ---
 
-## Protecting the endpoint
+## Protecting provider spend
 
-**`/api/converse` is unauthenticated.** Once it's public, anyone who finds the URL
-can spend your OpenAI and ElevenLabs budgets — each request costs transcription,
-LLM, and TTS.
-Before sharing the domain, add at least one of these.
-
-**Option A — Rate limit at Caddy** (needs the
-[`ratelimit`](https://github.com/mholt/caddy-ratelimit) plugin, so a custom Caddy
-build):
-
-```caddyfile
-rate_limit {
-	zone converse {
-		match {
-			path /api/converse
-		}
-		key {remote_host}
-		events 10
-		window 1m
-	}
-}
-```
-
-**Option B — A shared secret header.** Simplest to bolt on: require a header in
-Caddy and ship the same value in the mod.
-
-```caddyfile
-@unauthorized {
-	path /api/converse
-	not header X-Yapping-Key "YOUR_SHARED_SECRET"
-}
-respond @unauthorized 401
-```
-
-Add the matching header in `sendConversation` in the mod:
-
-```java
-.header("X-Yapping-Key", "YOUR_SHARED_SECRET")
-```
-
-**Option C — Set hard spend caps** in the OpenAI and ElevenLabs dashboards. Do
-this regardless of A or B; it's the backstop that turns a runaway bill into a
-broken feature.
+`/api/converse` verifies a hashed, revocable per-user API key, account bans,
+monthly usage limits, and Polar entitlement before calling providers. Also set
+hard spend caps in the OpenAI and ElevenLabs dashboards as a final backstop.
 
 ## Updating a deployment
 
@@ -369,7 +323,7 @@ setting in the Hub rather than rolling your own.
 | `curl 127.0.0.1:31415` works, `https://` doesn't | Caddy issue — check `journalctl -u caddy -f`, confirm the site block was added to the file Caddy actually loads. |
 | Caddy can't get a certificate | DNS not resolving to this VPS yet, or ports 80/443 blocked by the UpCloud firewall. Let's Encrypt needs inbound 80. |
 | `502 Bad Gateway` from Caddy | Container is down or unhealthy. `docker compose ps`, then check logs. |
-| `drizzle-kit push` hangs | Database unreachable — UpCloud IP allowlist, or missing `?sslmode=require`. |
+| `drizzle-kit migrate` hangs | Database unreachable — UpCloud IP allowlist, or missing `?sslmode=require`. |
 | `502` with `OpenAI 401 invalid_api_key` | Bad `OPENAI_API_KEY`. Note this proves the whole chain up to OpenAI works. |
 | `502` with `ElevenLabs 401` | Bad or missing `ELEVENLABS_API_KEY`. |
 | Mod says `Conversation failed: Connection refused` | Mod still points at `localhost` — see step 10. |

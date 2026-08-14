@@ -1,8 +1,13 @@
+import { mobPersona, mobPrompt } from "@mine-yapping/db/schema/prompts";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
+
 type Turn = { player: string; mob: string };
 
 const histories = new Map<string, Turn[]>();
-const entityVoices = new Map<string, string>();
 let availableVoices: Promise<string[]> | undefined;
+
+export const DEFAULT_MOB_PROMPT =
+	"You are {entityName}, a Minecraft {entityType}. Reply in character in at most two short sentences. Use the entity type to infer a distinct personality and speech style.";
 
 const RESPONSE_SCHEMA = {
 	type: "object",
@@ -17,6 +22,11 @@ export type MobReply = {
 	transcript: string;
 	reply: string;
 	audio: string;
+	usage: {
+		inputTokens: number;
+		outputTokens: number;
+		ttsCharacters: number;
+	};
 };
 
 type MobContext = {
@@ -76,16 +86,140 @@ const getAvailableVoices = (apiKey: string) => {
 	return availableVoices;
 };
 
-export const voiceFor = (entityId: string, voiceIds: string[]) => {
-	const remembered = entityVoices.get(entityId);
-	if (remembered) return remembered;
-	const voice = voiceIds[Math.floor(Math.random() * voiceIds.length)];
-	if (!voice) throw new Error("ElevenLabs returned no voices");
-	entityVoices.set(entityId, voice);
-	if (entityVoices.size > 1_000)
-		entityVoices.delete(entityVoices.keys().next().value as string);
-	return voice;
+type PromptChoice = {
+	id: string;
+	entityType: string;
+	prompt: string;
+	ownerUserId?: string | null;
 };
+type ExistingPersona = {
+	promptId: string | null;
+	prompt: string | null;
+	voiceId: string;
+};
+
+export const choosePersona = (
+	existing: ExistingPersona | undefined,
+	candidates: PromptChoice[],
+	entityType: string,
+	voiceIds: string[],
+	random = Math.random,
+	userId?: string,
+) => {
+	if (existing?.promptId && existing.prompt) {
+		return {
+			promptId: existing.promptId,
+			prompt: existing.prompt,
+			voiceId: existing.voiceId,
+			shouldPersist: false,
+		};
+	}
+	const tiers = [
+		...(userId
+			? [
+					candidates.filter(
+						(candidate) =>
+							candidate.ownerUserId === userId &&
+							candidate.entityType === entityType,
+					),
+					candidates.filter(
+						(candidate) =>
+							candidate.ownerUserId === userId && candidate.entityType === "*",
+					),
+				]
+			: []),
+		candidates.filter(
+			(candidate) =>
+				!candidate.ownerUserId && candidate.entityType === entityType,
+		),
+		candidates.filter(
+			(candidate) => !candidate.ownerUserId && candidate.entityType === "*",
+		),
+	];
+	const choices = tiers.find((tier) => tier.length) ?? [];
+	const choice = choices[Math.floor(random() * choices.length)];
+	const voiceId =
+		existing?.voiceId ?? voiceIds[Math.floor(random() * voiceIds.length)];
+	if (!voiceId) throw new Error("ElevenLabs returned no voices");
+	return {
+		promptId: choice?.id ?? null,
+		prompt: choice?.prompt ?? DEFAULT_MOB_PROMPT,
+		voiceId,
+		shouldPersist: true,
+	};
+};
+
+export const renderPrompt = (prompt: string, context: MobContext) =>
+	prompt.replace(
+		/\{(\w+)\}/g,
+		(_, key: string) => context[key as keyof MobContext] ?? "",
+	);
+
+export async function personaFor(
+	userId: string,
+	entityId: string,
+	entityType: string,
+	voiceIds: string[],
+) {
+	try {
+		const { db } = await import("@mine-yapping/db");
+		const [existing] = await db
+			.select({
+				promptId: mobPersona.promptId,
+				prompt: mobPrompt.prompt,
+				voiceId: mobPersona.voiceId,
+			})
+			.from(mobPersona)
+			.leftJoin(mobPrompt, eq(mobPersona.promptId, mobPrompt.id))
+			.where(
+				and(eq(mobPersona.userId, userId), eq(mobPersona.entityId, entityId)),
+			)
+			.limit(1);
+		if (existing?.promptId && existing.prompt) {
+			return choosePersona(existing, [], entityType, voiceIds);
+		}
+
+		const candidates = await db
+			.select({
+				id: mobPrompt.id,
+				ownerUserId: mobPrompt.ownerUserId,
+				entityType: mobPrompt.entityType,
+				prompt: mobPrompt.prompt,
+			})
+			.from(mobPrompt)
+			.where(
+				and(
+					eq(mobPrompt.enabled, true),
+					inArray(mobPrompt.entityType, [entityType, "*"]),
+					or(eq(mobPrompt.ownerUserId, userId), isNull(mobPrompt.ownerUserId)),
+				),
+			);
+		const persona = choosePersona(
+			existing,
+			candidates,
+			entityType,
+			voiceIds,
+			Math.random,
+			userId,
+		);
+		await db
+			.insert(mobPersona)
+			.values({
+				userId,
+				entityId,
+				promptId: persona.promptId,
+				voiceId: persona.voiceId,
+			})
+			.onConflictDoUpdate({
+				target: [mobPersona.userId, mobPersona.entityId],
+				set: { promptId: persona.promptId, voiceId: persona.voiceId },
+			});
+		return persona;
+	} catch (cause) {
+		console.error("Using fallback mob persona:", cause);
+		return choosePersona(undefined, [], entityType, voiceIds);
+	}
+}
 
 export const extractResponseText = (response: unknown): string => {
 	if (!response || typeof response !== "object" || !("output" in response)) {
@@ -108,22 +242,29 @@ export async function converse(
 	context: MobContext,
 	openAiApiKey: string,
 	elevenLabsApiKey: string,
+	userId: string,
 ): Promise<MobReply> {
-	const transcript = await transcribe(input, openAiApiKey);
+	const [transcript, voiceIds] = await Promise.all([
+		transcribe(input, openAiApiKey),
+		getAvailableVoices(elevenLabsApiKey),
+	]);
 	if (!transcript) throw new Error("No speech was detected");
+	const persona = await personaFor(
+		userId,
+		context.entityId,
+		context.entityType,
+		voiceIds,
+	);
 
-	const history = histories.get(context.entityId) ?? [];
-	const response = await (
+	const historyKey = `${userId}:${context.entityId}`;
+	const history = histories.get(historyKey) ?? [];
+	const response = (await (
 		await openAI("/responses", openAiApiKey, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
 				model: "gpt-5.6-luna",
-				instructions: [
-					`You are ${context.entityName}, a Minecraft ${context.entityType}.`,
-					"Reply in character in at most two short sentences.",
-					"Use the entity type to infer a distinct personality and speech style.",
-				].join(" "),
+				instructions: renderPrompt(persona.prompt, context),
 				input: [
 					...history.flatMap((turn) => [
 						{ role: "user", content: turn.player },
@@ -144,17 +285,13 @@ export async function converse(
 				},
 			}),
 		})
-	).json();
-	const reply = JSON.parse(extractResponseText(response)) as Omit<
-		MobReply,
-		"transcript" | "audio"
-	>;
-	const voiceId = voiceFor(
-		context.entityId,
-		await getAvailableVoices(elevenLabsApiKey),
-	);
+	).json()) as {
+		output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+		usage?: { input_tokens?: number; output_tokens?: number };
+	};
+	const reply = JSON.parse(extractResponseText(response)) as { reply: string };
 	const speech = await elevenLabs(
-		`/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=wav_24000`,
+		`/v1/text-to-speech/${encodeURIComponent(persona.voiceId)}?output_format=wav_24000`,
 		elevenLabsApiKey,
 		{
 			method: "POST",
@@ -164,7 +301,7 @@ export async function converse(
 	);
 
 	histories.set(
-		context.entityId,
+		historyKey,
 		[...history, { player: transcript, mob: reply.reply }].slice(-4),
 	);
 	// ponytail: process memory is enough for the prototype; persist when conversations must survive restarts.
@@ -174,6 +311,11 @@ export async function converse(
 		transcript,
 		...reply,
 		audio: Buffer.from(await speech.arrayBuffer()).toString("base64"),
+		usage: {
+			inputTokens: response.usage?.input_tokens ?? 0,
+			outputTokens: response.usage?.output_tokens ?? 0,
+			ttsCharacters: reply.reply.length,
+		},
 	};
 }
 

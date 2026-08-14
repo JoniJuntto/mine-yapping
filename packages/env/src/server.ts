@@ -9,9 +9,14 @@ export const env = createEnv({
 		BETTER_AUTH_URL: z.url(),
 		POLAR_ACCESS_TOKEN: z.string().min(1),
 		POLAR_SUCCESS_URL: z.url(),
+		POLAR_SERVER: z.enum(["sandbox", "production"]).default("sandbox"),
 		CORS_ORIGIN: z.url(),
 		OPENAI_API_KEY: z.string().min(1),
 		ELEVENLABS_API_KEY: z.string().min(1),
+		DISABLE_SIGN_UP: z
+			.enum(["true", "false"])
+			.default("false")
+			.transform((value) => value === "true"),
 		NODE_ENV: z
 			.enum(["development", "production", "test"])
 			.default("development"),
