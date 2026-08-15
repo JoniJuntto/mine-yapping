@@ -1,26 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import {
 	choosePersona,
-	extractResponseText,
 	renderPrompt,
+	shiftCompleteSentence,
 	transcribe,
 } from "./conversation";
 
-describe("extractResponseText", () => {
-	test("finds structured output text", () => {
-		expect(
-			extractResponseText({
-				output: [
-					{ content: [{ type: "output_text", text: '{"reply":"hmm"}' }] },
-				],
-			}),
-		).toBe('{"reply":"hmm"}');
-	});
-
-	test("rejects an empty response", () => {
-		expect(() => extractResponseText({ output: [] })).toThrow(
-			"OpenAI returned no text",
-		);
+describe("shiftCompleteSentence", () => {
+	test("holds partial text and emits one complete sentence", () => {
+		expect(shiftCompleteSentence("Still speaking")).toBeNull();
+		expect(shiftCompleteSentence('Hello there! "Next sentence')).toEqual({
+			sentence: "Hello there!",
+			rest: '"Next sentence',
+		});
 	});
 });
 

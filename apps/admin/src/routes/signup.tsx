@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../lib/auth-client";
 import { redirectSignedIn } from "../lib/route-guards";
-import { AuthCard } from "./login";
+import { AuthCard, TwitchButton } from "./login";
 
 export const Route = createFileRoute("/signup")({
 	beforeLoad: redirectSignedIn,
@@ -35,6 +35,8 @@ function Signup() {
 				</span>
 			}
 		>
+			<TwitchButton />
+			<p className="text-center text-ink/55 text-sm">or sign up with email</p>
 			<form onSubmit={submit} className="grid gap-4">
 				<label>
 					Name

@@ -1,15 +1,21 @@
 import { db } from "@mine-yapping/db";
-import { appSettings, usageEvent } from "@mine-yapping/db/schema/app";
+import { appSettings, donation, usageEvent } from "@mine-yapping/db/schema/app";
 import { apikey, user } from "@mine-yapping/db/schema/auth";
-import { count, desc, eq, ilike, or } from "drizzle-orm";
+import { count, desc, eq, ilike, or, sql, sum } from "drizzle-orm";
 import { Elysia, t } from "elysia";
-import { getSession, hasRole } from "./access";
+import { getSession, hasRole, invalidateApiKeyUsers } from "./access";
 import {
 	deleteProviderKeys,
 	hasProviderKeys,
 	saveProviderKeys,
 } from "./provider-key";
-import { getSettings, globalUsage, usageFor } from "./usage";
+import {
+	clearSettingsCache,
+	getSettings,
+	globalUsage,
+	monthlyRequestLimitFor,
+	usageFor,
+} from "./usage";
 
 const sessionApi = new Elysia({ prefix: "/api" })
 	.resolve(async ({ request, status }) => {
@@ -18,16 +24,18 @@ const sessionApi = new Elysia({ prefix: "/api" })
 		return { currentUser: session.user };
 	})
 	.get("/me/summary", async ({ currentUser }) => {
-		const [settings, usage, byokConfigured] = await Promise.all([
-			getSettings(),
-			usageFor(currentUser.id),
-			hasProviderKeys(currentUser.id),
-		]);
+		const [monthlyRequestLimit, usage, byokConfigured, settings] =
+			await Promise.all([
+				monthlyRequestLimitFor(currentUser.id),
+				usageFor(currentUser.id),
+				hasProviderKeys(currentUser.id),
+				getSettings(),
+			]);
 		return {
 			user: currentUser,
 			usage,
 			byokConfigured,
-			monthlyRequestLimit: settings.monthlyFreeRequests,
+			monthlyRequestLimit,
 			donationsEnabled: !!settings.polarProductId,
 		};
 	})
@@ -59,6 +67,32 @@ const sessionApi = new Elysia({ prefix: "/api" })
 	.delete("/me/provider-keys", async ({ currentUser, status }) => {
 		await deleteProviderKeys(currentUser.id);
 		return status(204);
+	});
+
+const publicApi = new Elysia({ prefix: "/api" })
+	.get("/stats", async () => ({
+		estimatedCostUsd: (await globalUsage()).free.estimatedCostUsd,
+	}))
+	.get("/donations", async () => {
+		const donors = await db
+			.select({
+				customerId: donation.customerId,
+				nickname: sql<
+					string | null
+				>`(array_agg(${donation.nickname} order by ${donation.createdAt} desc))[1]`,
+				showNickname: sql<boolean>`(array_agg(${donation.showNickname} order by ${donation.createdAt} desc))[1]`,
+				amount: sum(donation.amount).mapWith(Number),
+				currency: donation.currency,
+			})
+			.from(donation)
+			.groupBy(donation.customerId, donation.currency)
+			.orderBy(desc(sum(donation.amount)));
+		return donors.map(
+			({ customerId: _, nickname, showNickname, ...donor }) => ({
+				...donor,
+				nickname: showNickname && nickname ? nickname : "Anonymous",
+			}),
+		);
 	});
 
 const adminApi = new Elysia({ prefix: "/api/admin" })
@@ -124,6 +158,7 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 				.delete(apikey)
 				.where(eq(apikey.referenceId, params.id))
 				.returning({ id: apikey.id });
+			invalidateApiKeyUsers();
 			return status(200, { revoked: deleted.length });
 		},
 		{ params: t.Object({ id: t.String({ minLength: 1 }) }) },
@@ -142,6 +177,7 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 				})
 				.where(eq(appSettings.id, "global"))
 				.returning();
+			clearSettingsCache();
 			return settings;
 		},
 		{
@@ -152,4 +188,4 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 		},
 	);
 
-export const appApi = new Elysia().use(sessionApi).use(adminApi);
+export const appApi = new Elysia().use(publicApi).use(sessionApi).use(adminApi);

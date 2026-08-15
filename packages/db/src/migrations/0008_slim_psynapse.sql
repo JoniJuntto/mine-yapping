@@ -1,0 +1,1 @@
+ALTER TABLE "usage_event" ADD COLUMN "audio_ms" integer DEFAULT 0 NOT NULL;

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { AppShell } from "../components/app-shell";
+import { DonationForm } from "../components/donation-form";
 import { api } from "../lib/api";
 import { authClient } from "../lib/auth-client";
 import { requireUser } from "../lib/route-guards";
@@ -126,13 +127,7 @@ function Account() {
 						Donations are optional and never change features or usage limits.
 					</p>
 					{summary?.donationsEnabled && (
-						<button
-							type="button"
-							className="button-primary"
-							onClick={() => authClient.checkout({ slug: "donate" })}
-						>
-							Donate
-						</button>
+						<DonationForm defaultNickname={summary.user.name} />
 					)}
 				</section>
 				<section className="card lg:col-span-2">

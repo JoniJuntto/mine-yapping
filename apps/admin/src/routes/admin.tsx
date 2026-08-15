@@ -24,6 +24,8 @@ type Usage = {
 	inputTokens: number;
 	outputTokens: number;
 	ttsCharacters: number;
+	audioMs: number;
+	estimatedCostUsd: number;
 };
 export const Route = createFileRoute("/admin")({
 	beforeLoad: () => requireUser(true),
@@ -44,10 +46,20 @@ function Admin() {
 			<p className="eyebrow">Admin</p>
 			<h1 className="mt-0 text-4xl">Global overview</h1>
 			{error && <p className="alert-error">{error}</p>}
-			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<Metric label="Users" value={data?.users} />
 				<Metric label="Free requests" value={data?.usage.free.requests} />
 				<Metric label="BYOK requests" value={data?.usage.byok.requests} />
+				<Metric
+					label="Estimated app API spend this month"
+					value={
+						data &&
+						new Intl.NumberFormat("en", {
+							style: "currency",
+							currency: "USD",
+						}).format(data.usage.free.estimatedCostUsd)
+					}
+				/>
 			</div>
 			<div className="mt-6 grid gap-4 lg:grid-cols-2">
 				<UsageCard label="Free-tier usage" usage={data?.usage.free} />
@@ -87,12 +99,12 @@ function UsageCard({ label, usage }: { label: string; usage?: Usage }) {
 		</section>
 	);
 }
-function Metric({ label, value }: { label: string; value?: number }) {
+function Metric({ label, value }: { label: string; value?: number | string }) {
 	return (
 		<article className="card">
 			<p className="m-0 text-ink/55 text-sm">{label}</p>
 			<strong className="mt-2 block text-3xl">
-				{value?.toLocaleString() ?? "—"}
+				{typeof value === "number" ? value.toLocaleString() : (value ?? "—")}
 			</strong>
 		</article>
 	);

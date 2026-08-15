@@ -9,27 +9,20 @@ let availableVoices: Promise<string[]> | undefined;
 export const DEFAULT_MOB_PROMPT =
 	"You are {entityName}, a Minecraft {entityType}. Reply in character in at most two short sentences. Use the entity type to infer a distinct personality and speech style.";
 
-const RESPONSE_SCHEMA = {
-	type: "object",
-	properties: {
-		reply: { type: "string" },
-	},
-	required: ["reply"],
-	additionalProperties: false,
-} as const;
-
 export type MobReply = {
 	transcript: string;
 	reply: string;
-	audio: string;
+	audio: ReadableStream<Uint8Array>;
 	usage: {
 		inputTokens: number;
 		outputTokens: number;
 		ttsCharacters: number;
 	};
+	latency: { sttMs: number; llmMs: number };
+	completion: Promise<{ successful: boolean; ttsMs: number }>;
 };
 
-type MobContext = {
+export type MobContext = {
 	entityId: string;
 	entityType: string;
 	entityName: string;
@@ -221,20 +214,342 @@ export async function personaFor(
 	}
 }
 
-export const extractResponseText = (response: unknown): string => {
-	if (!response || typeof response !== "object" || !("output" in response)) {
-		throw new Error("OpenAI returned no output");
-	}
-	const output = (
-		response as {
-			output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+export const shiftCompleteSentence = (text: string) => {
+	const match = text.match(/^([\s\S]*?[.!?]+(?:["')\]]+)?)(?=\s|$)/);
+	return match
+		? {
+				sentence: match[1]?.trim() ?? "",
+				rest: text.slice(match[0].length).trimStart(),
+			}
+		: null;
+};
+
+type Persona = Awaited<ReturnType<typeof personaFor>>;
+type ReplyUsage = { inputTokens: number; outputTokens: number };
+
+export const personaForConversation = (
+	context: MobContext,
+	elevenLabsApiKey: string,
+	userId: string,
+) =>
+	getAvailableVoices(elevenLabsApiKey).then((voiceIds) =>
+		personaFor(userId, context.entityId, context.entityType, voiceIds),
+	);
+
+async function* sseEvents(body: ReadableStream<Uint8Array>) {
+	const reader = body.getReader();
+	const decoder = new TextDecoder();
+	let buffer = "";
+	let completed = false;
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			buffer += decoder.decode(value, { stream: !done });
+			const blocks = buffer.split(/\r?\n\r?\n/);
+			buffer = blocks.pop() ?? "";
+			for (const block of blocks) {
+				const data = block
+					.split(/\r?\n/)
+					.filter((line) => line.startsWith("data:"))
+					.map((line) => line.slice(5).trimStart())
+					.join("\n");
+				if (data && data !== "[DONE]")
+					yield JSON.parse(data) as Record<string, unknown>;
+			}
+			if (done) {
+				completed = true;
+				break;
+			}
 		}
-	).output;
-	const text = output
-		?.flatMap((item) => item.content ?? [])
-		.find((item) => item.type === "output_text")?.text;
-	if (!text) throw new Error("OpenAI returned no text");
-	return text;
+	} finally {
+		if (!completed) await reader.cancel().catch(() => undefined);
+		reader.releaseLock();
+	}
+}
+
+async function generateReply(
+	transcript: string,
+	context: MobContext,
+	persona: Persona,
+	openAiApiKey: string,
+	userId: string,
+	onSentence?: (sentence: string) => void | Promise<void>,
+) {
+	const historyKey = `${userId}:${context.entityId}`;
+	const history = histories.get(historyKey) ?? [];
+	const startedAt = Date.now();
+	const response = await openAI("/responses", openAiApiKey, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			model: "gpt-5.6-luna",
+			instructions: `${renderPrompt(persona.prompt, context)}\nReply in at most two short sentences. Return only the spoken reply, with no label or formatting.`,
+			input: [
+				...history.flatMap((turn) => [
+					{ role: "user", content: turn.player },
+					{ role: "assistant", content: turn.mob },
+				]),
+				{
+					role: "user",
+					content: `Player ${context.playerName} says: ${transcript}\nWorld: ${context.dimension}; mob health: ${context.health}`,
+				},
+			],
+			reasoning: { effort: "none" },
+			text: { format: { type: "text" }, verbosity: "low" },
+			max_output_tokens: 120,
+			prompt_cache_key: historyKey,
+			store: false,
+			stream: true,
+		}),
+	});
+	if (!response.body) throw new Error("OpenAI returned no response stream");
+
+	let reply = "";
+	let pending = "";
+	let usage: ReplyUsage = { inputTokens: 0, outputTokens: 0 };
+	for await (const event of sseEvents(response.body)) {
+		if (event.type === "response.output_text.delta") {
+			const delta = typeof event.delta === "string" ? event.delta : "";
+			reply += delta;
+			pending += delta;
+			let complete = shiftCompleteSentence(pending);
+			while (complete) {
+				if (complete.sentence) await onSentence?.(complete.sentence);
+				pending = complete.rest;
+				complete = shiftCompleteSentence(pending);
+			}
+		} else if (event.type === "response.completed") {
+			const responseUsage = (
+				event.response as {
+					usage?: { input_tokens?: number; output_tokens?: number };
+				}
+			)?.usage;
+			usage = {
+				inputTokens: responseUsage?.input_tokens ?? 0,
+				outputTokens: responseUsage?.output_tokens ?? 0,
+			};
+		} else if (event.type === "response.failed" || event.type === "error") {
+			throw new Error(
+				`OpenAI response failed: ${JSON.stringify(event).slice(0, 300)}`,
+			);
+		}
+	}
+	if (pending.trim()) await onSentence?.(pending.trim());
+	reply = reply.trim();
+	if (!reply) throw new Error("OpenAI returned no text");
+	histories.set(
+		historyKey,
+		[...history, { player: transcript, mob: reply }].slice(-4),
+	);
+	// ponytail: process memory is enough for the prototype; persist when conversations must survive restarts.
+	if (histories.size > 1_000)
+		histories.delete(histories.keys().next().value as string);
+	return { reply, usage, llmMs: Date.now() - startedAt };
+}
+
+class LiveSpeech {
+	private readonly socket: WebSocket;
+	private readonly opened: Promise<void>;
+	private readonly finished: Promise<number>;
+	private resolveOpened!: () => void;
+	private rejectOpened!: (cause: unknown) => void;
+	private resolveFinished!: (ttsMs: number) => void;
+	private rejectFinished!: (cause: unknown) => void;
+	private firstTextAt = 0;
+	private firstAudioAt = 0;
+	private settled = false;
+	private readonly openTimeout: ReturnType<typeof setTimeout>;
+	private finishTimeout?: ReturnType<typeof setTimeout>;
+
+	constructor(
+		voiceId: string,
+		apiKey: string,
+		private readonly onAudio: (audio: Uint8Array) => void,
+	) {
+		this.opened = new Promise((resolve, reject) => {
+			this.resolveOpened = resolve;
+			this.rejectOpened = reject;
+		});
+		this.finished = new Promise((resolve, reject) => {
+			this.resolveFinished = resolve;
+			this.rejectFinished = reject;
+		});
+		void this.opened.catch(() => undefined);
+		void this.finished.catch(() => undefined);
+		this.openTimeout = setTimeout(
+			() => this.fail(new Error("ElevenLabs connection timed out")),
+			5_000,
+		);
+		const url = new URL(
+			`wss://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream-input`,
+		);
+		url.searchParams.set("model_id", "eleven_flash_v2_5");
+		url.searchParams.set("output_format", "pcm_24000");
+		url.searchParams.set("auto_mode", "true");
+		this.socket = new WebSocket(url);
+		this.socket.addEventListener("open", () => {
+			clearTimeout(this.openTimeout);
+			this.socket.send(JSON.stringify({ text: " ", xi_api_key: apiKey }));
+			this.resolveOpened();
+		});
+		this.socket.addEventListener("message", ({ data }) => {
+			const message = JSON.parse(String(data)) as {
+				audio?: string;
+				isFinal?: boolean;
+				error?: string | { message?: string };
+			};
+			if (message.error) {
+				this.fail(
+					new Error(
+						typeof message.error === "string"
+							? message.error
+							: (message.error.message ?? "ElevenLabs stream failed"),
+					),
+				);
+				return;
+			}
+			if (message.audio) {
+				if (!this.firstAudioAt) this.firstAudioAt = Date.now();
+				this.onAudio(Buffer.from(message.audio, "base64"));
+			}
+			if (message.isFinal) this.complete();
+		});
+		this.socket.addEventListener("error", () =>
+			this.fail(new Error("ElevenLabs WebSocket failed")),
+		);
+		this.socket.addEventListener("close", () => {
+			if (!this.settled) {
+				if (this.firstAudioAt) this.complete();
+				else this.fail(new Error("ElevenLabs closed without audio"));
+			}
+		});
+	}
+
+	private clearTimeouts() {
+		clearTimeout(this.openTimeout);
+		if (this.finishTimeout) clearTimeout(this.finishTimeout);
+	}
+
+	private complete() {
+		if (this.settled) return;
+		this.settled = true;
+		this.clearTimeouts();
+		this.resolveFinished(
+			(this.firstAudioAt || Date.now()) - (this.firstTextAt || Date.now()),
+		);
+	}
+
+	private fail(cause: unknown) {
+		if (this.settled) return;
+		this.settled = true;
+		this.clearTimeouts();
+		this.rejectOpened(cause);
+		this.rejectFinished(cause);
+		this.socket.close();
+	}
+
+	async send(sentence: string) {
+		await this.opened;
+		if (!this.firstTextAt) this.firstTextAt = Date.now();
+		this.socket.send(JSON.stringify({ text: `${sentence} ` }));
+	}
+
+	async finish() {
+		await this.opened;
+		this.finishTimeout ??= setTimeout(
+			() => this.fail(new Error("ElevenLabs audio stream timed out")),
+			30_000,
+		);
+		this.socket.send(JSON.stringify({ text: "" }));
+		return this.finished;
+	}
+
+	cancel() {
+		this.clearTimeouts();
+		this.settled = true;
+		this.socket.close();
+	}
+}
+
+export async function converseRealtime(
+	transcript: string,
+	context: MobContext,
+	openAiApiKey: string,
+	elevenLabsApiKey: string,
+	userId: string,
+	personaPromise: Promise<Persona>,
+	onAudio: (audio: Uint8Array) => void,
+	onReply: (reply: string) => void,
+) {
+	const persona = await personaPromise;
+	const speech = new LiveSpeech(persona.voiceId, elevenLabsApiKey, onAudio);
+	try {
+		const generated = await generateReply(
+			transcript,
+			context,
+			persona,
+			openAiApiKey,
+			userId,
+			(sentence) => {
+				onReply(sentence);
+				return speech.send(sentence);
+			},
+		);
+		const ttsMs = await speech.finish();
+		return {
+			usage: {
+				...generated.usage,
+				ttsCharacters: generated.reply.length,
+			},
+			llmMs: generated.llmMs,
+			ttsMs,
+		};
+	} catch (cause) {
+		speech.cancel();
+		throw cause;
+	}
+}
+
+const measuredAudioStream = (
+	source: ReadableStream<Uint8Array>,
+	startedAt: number,
+) => {
+	const reader = source.getReader();
+	let firstByteAt = 0;
+	let finish!: (value: { successful: boolean; ttsMs: number }) => void;
+	const completion = new Promise<{ successful: boolean; ttsMs: number }>(
+		(resolve) => {
+			finish = resolve;
+		},
+	);
+	const result = () => ({
+		successful: true,
+		ttsMs: (firstByteAt || Date.now()) - startedAt,
+	});
+	return {
+		completion,
+		audio: new ReadableStream<Uint8Array>({
+			async pull(controller) {
+				try {
+					const { done, value } = await reader.read();
+					if (done) {
+						finish(result());
+						controller.close();
+						return;
+					}
+					if (!firstByteAt) firstByteAt = Date.now();
+					controller.enqueue(value);
+				} catch (cause) {
+					finish({ ...result(), successful: false });
+					controller.error(cause);
+				}
+			},
+			async cancel(reason) {
+				finish({ ...result(), successful: false });
+				await reader.cancel(reason);
+			},
+		}),
+	};
 };
 
 export async function converse(
@@ -244,78 +559,48 @@ export async function converse(
 	elevenLabsApiKey: string,
 	userId: string,
 ): Promise<MobReply> {
-	const [transcript, voiceIds] = await Promise.all([
-		transcribe(input, openAiApiKey),
-		getAvailableVoices(elevenLabsApiKey),
+	const sttStartedAt = Date.now();
+	const [transcription, persona] = await Promise.all([
+		transcribe(input, openAiApiKey).then((transcript) => ({
+			transcript,
+			sttMs: Date.now() - sttStartedAt,
+		})),
+		personaForConversation(context, elevenLabsApiKey, userId),
 	]);
+	const { transcript, sttMs } = transcription;
 	if (!transcript) throw new Error("No speech was detected");
-	const persona = await personaFor(
+	const generated = await generateReply(
+		transcript,
+		context,
+		persona,
+		openAiApiKey,
 		userId,
-		context.entityId,
-		context.entityType,
-		voiceIds,
 	);
-
-	const historyKey = `${userId}:${context.entityId}`;
-	const history = histories.get(historyKey) ?? [];
-	const response = (await (
-		await openAI("/responses", openAiApiKey, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				model: "gpt-5.6-luna",
-				instructions: renderPrompt(persona.prompt, context),
-				input: [
-					...history.flatMap((turn) => [
-						{ role: "user", content: turn.player },
-						{ role: "assistant", content: turn.mob },
-					]),
-					{
-						role: "user",
-						content: `Player ${context.playerName} says: ${transcript}\nWorld: ${context.dimension}; mob health: ${context.health}`,
-					},
-				],
-				text: {
-					format: {
-						type: "json_schema",
-						name: "mob_reply",
-						strict: true,
-						schema: RESPONSE_SCHEMA,
-					},
-				},
-			}),
-		})
-	).json()) as {
-		output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
-		usage?: { input_tokens?: number; output_tokens?: number };
-	};
-	const reply = JSON.parse(extractResponseText(response)) as { reply: string };
+	const ttsStartedAt = Date.now();
 	const speech = await elevenLabs(
-		`/v1/text-to-speech/${encodeURIComponent(persona.voiceId)}?output_format=wav_24000`,
+		`/v1/text-to-speech/${encodeURIComponent(persona.voiceId)}/stream?output_format=pcm_24000`,
 		elevenLabsApiKey,
 		{
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ text: reply.reply }),
+			body: JSON.stringify({
+				text: generated.reply,
+				model_id: "eleven_flash_v2_5",
+			}),
 		},
 	);
-
-	histories.set(
-		historyKey,
-		[...history, { player: transcript, mob: reply.reply }].slice(-4),
-	);
-	// ponytail: process memory is enough for the prototype; persist when conversations must survive restarts.
-	if (histories.size > 1_000)
-		histories.delete(histories.keys().next().value as string);
+	if (!speech.body) throw new Error("ElevenLabs returned no audio stream");
+	const streamed = measuredAudioStream(speech.body, ttsStartedAt);
 	return {
 		transcript,
-		...reply,
-		audio: Buffer.from(await speech.arrayBuffer()).toString("base64"),
+		reply: generated.reply,
+		audio: streamed.audio,
 		usage: {
-			inputTokens: response.usage?.input_tokens ?? 0,
-			outputTokens: response.usage?.output_tokens ?? 0,
-			ttsCharacters: reply.reply.length,
+			...generated.usage,
+			ttsCharacters: generated.reply.length,
 		},
+		latency: { sttMs, llmMs: generated.llmMs },
+		completion: streamed.completion,
 	};
 }
 
@@ -323,7 +608,7 @@ export async function transcribe(input: File | string, apiKey: string) {
 	if (typeof input === "string") return input.trim();
 	const form = new FormData();
 	form.append("file", input, "speech.wav");
-	form.append("model", "gpt-transcribe");
+	form.append("model", "gpt-4o-mini-transcribe");
 	const transcription = (await (
 		await openAI("/audio/transcriptions", apiKey, {
 			method: "POST",

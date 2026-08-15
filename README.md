@@ -6,20 +6,20 @@
 Talk to Minecraft mobs with your voice. Hold **V**, speak at a mob, and it answers
 in character — in chat and out loud.
 
-A client-only Fabric mod records your microphone and POSTs it to a local Bun
-backend, which runs speech-to-text → LLM → text-to-speech and returns the reply
-plus synthesized audio. The mod never talks to the Minecraft server, so it works
+A client-only Fabric mod streams your microphone to a Bun backend, which runs
+speech-to-text → LLM → text-to-speech and streams the reply audio back. The mod
+never talks to the Minecraft server, so it works
 on vanilla and modded multiplayer servers with only you having it installed.
 
 ```
-[Fabric mod]  hold V → record mic → multipart POST ─┐
-                                                    │
-[Bun server]  /api/converse ────────────────────────┘
-                 ├─ POST /v1/audio/transcriptions   (gpt-transcribe)   → transcript
-                 ├─ POST /v1/responses              (gpt-5.6-luna)     → in-character reply
-                 └─ POST /v1/text-to-speech/:voice  (ElevenLabs)      → WAV, base64
-                                                    │
-[Fabric mod]  chat lines + audio playback ◄─────────┘
+[Fabric mod]  hold V → 20 ms PCM frames ───────────┐
+                                                   │ WebSocket
+[Bun server]  /api/converse/stream ────────────────┘
+                 ├─ OpenAI realtime transcription  → transcript
+                 ├─ Responses SSE (gpt-5.6-luna)   → complete sentences
+                 └─ ElevenLabs stream-input        → PCM chunks
+                                                   │
+[Fabric mod]  chat lines + positional PCM ◄────────┘
 ```
 
 ## Features
@@ -38,27 +38,29 @@ on vanilla and modded multiplayer servers with only you having it installed.
 - **Per-mob conversation memory** — the last **4 turns** are kept per entity UUID,
   so a given cow remembers what you just said to it. Memory is in-process and
   capped at 1000 entities (oldest evicted).
-- **Spoken replies** — TTS audio is returned base64-encoded and played back
-  client-side on a virtual thread, so the game loop never blocks. Each mob keeps
-  its randomly assigned prompt and ElevenLabs voice in PostgreSQL across restarts.
+- **Spoken replies** — mono PCM is streamed, expanded to distance-aware stereo,
+  and played client-side on a virtual thread, so the game loop never blocks. Each
+  mob keeps its randomly assigned prompt and ElevenLabs voice in PostgreSQL across
+  restarts.
 - **Chat transcript** — you see `You: <transcript>` and `<Mob>: <reply>` as
   colored system messages, visible only to you.
 
 ### Server
 
 - **Elysia + Bun** HTTP API with typed request validation (`@sinclair/typebox`).
-- `POST /api/converse` — multipart endpoint; rejects audio over **5 MB** (413),
-  malformed bodies (422), and surfaces upstream provider failures as **502**
-  with the provider's message.
+- `POST /api/converse` — multipart compatibility endpoint returning raw streamed
+  PCM with base64url transcript/reply headers.
+- `WS /api/converse/stream` — realtime PCM input, transcript/reply control
+  messages, and binary PCM output used by the mod.
 - `GET /` — health check, returns `OK`.
-- **Structured LLM output** — the reply is requested via a strict `json_schema`
-  so parsing can't drift.
+- **Low-latency generation** — plain-text Responses SSE feeds complete sentences
+  into ElevenLabs Flash v2.5 as soon as they arrive.
 - **CORS** restricted to `CORS_ORIGIN`.
 - **Owned personality API** — users manage only their prompts; admins manage global
   defaults. Every ownership and role check is enforced by the server.
 - **Usage and quotas** — successful and failed requests are recorded without audio
-  or transcripts. Every account has the same monthly limit; optional Polar
-  donations grant no features or additional usage.
+  or transcripts. Twitch accounts receive 1.5× the base monthly limit; optional
+  Polar donations grant no features or additional usage.
 - **Env validation** at boot via `@t3-oss/env-core` + Zod — the process refuses to
   start with missing or malformed config rather than failing at request time.
 
@@ -112,7 +114,10 @@ startup if any is missing:
 | `DATABASE_URL` | PostgreSQL connection string |
 | `BETTER_AUTH_SECRET` | min. 32 characters |
 | `BETTER_AUTH_URL` | valid URL, e.g. `http://localhost:31415` |
+| `TWITCH_CLIENT_ID` | Twitch application client ID |
+| `TWITCH_CLIENT_SECRET` | Twitch application client secret |
 | `POLAR_ACCESS_TOKEN` | any non-empty string works for local play |
+| `POLAR_WEBHOOK_SECRET` | Polar webhook signing secret |
 | `POLAR_SUCCESS_URL` | valid URL |
 | `POLAR_SERVER` | optional: `sandbox` (default) or `production` |
 | `CORS_ORIGIN` | valid URL |
@@ -123,6 +128,9 @@ startup if any is missing:
 
 To skip validation temporarily (e.g. running only the tests):
 `SKIP_ENV_VALIDATION=1`.
+
+Register `${BETTER_AUTH_URL}/api/auth/callback/twitch` as the OAuth redirect URL
+for your Twitch application.
 
 ### 3. Database
 
@@ -192,7 +200,7 @@ curl -i -X POST http://localhost:31415/api/converse
 # → HTTP 422
 
 # full round trip with a real recording
-curl -X POST http://localhost:31415/api/converse \
+curl -D response.headers -o reply.pcm -X POST http://localhost:31415/api/converse \
   -H 'x-api-key: my_YOUR_DASHBOARD_KEY' \
   -F audio=@speech.wav \
   -F entityId=test-uuid \
@@ -201,12 +209,12 @@ curl -X POST http://localhost:31415/api/converse \
   -F playerName=joni \
   -F dimension=minecraft:overworld \
   -F health=10.0/10.0
-# → {"transcript":"...","reply":"...","audio":"<base64 wav>"}
+# → raw 24 kHz, 16-bit, mono PCM in reply.pcm; metadata in X-MineYapping-* headers
 ```
 
-Record a test WAV on macOS with any recorder, or reuse one the mod produced.
-The endpoint expects 16 kHz mono 16-bit PCM WAV, which is what the mod sends,
-but the transcription API tolerates other common formats.
+The compatibility endpoint accepts the common audio formats supported by the
+transcription API. The mod itself uses the WebSocket endpoint and sends 24 kHz,
+16-bit, mono PCM directly.
 
 To confirm the pipeline is wired up without spending tokens, run with a bogus
 `OPENAI_API_KEY` — a well-formed request returns **502** carrying the upstream
@@ -242,7 +250,7 @@ Loader ≥ 0.19.3 and Fabric API.
 3. Walk up to a mob, **hold V**, speak, and release.
 4. Expected chat sequence:
    - `Listening to <Mob>...` (aqua) — recording started
-   - `Thinking...` (gray) — audio uploaded
+   - `Thinking...` (gray) — the realtime turn was committed
    - `You: <what you said>` (dark gray)
    - `<Mob>: <reply>` (gold) — and the reply is spoken aloud
 
@@ -256,7 +264,7 @@ Loader ≥ 0.19.3 and Fabric API.
 | `Conversation failed: Connection refused` | Backend not running on port 31415 |
 | `Conversation failed (502): OpenAI 401 ...` | Bad or missing `OPENAI_API_KEY` |
 | `Conversation failed (502): ElevenLabs 401 ...` | Bad or missing `ELEVENLABS_API_KEY` |
-| `Speech playback failed: ...` | JVM couldn't play the returned WAV |
+| `Speech playback failed: ...` | JVM couldn't open 24 kHz PCM playback |
 
 Test conversation memory by asking a follow-up question that only makes sense
 with context ("what did I just say?") to the *same* mob — it should track across
@@ -287,8 +295,6 @@ docker compose logs -f server
   configurable in `mine-yapping.json`, but there is no in-game editor yet.
 - **Conversation history is in-process** — it's lost on restart and isn't shared
   across server instances.
-- Audio playback is not positional; the reply plays at full volume regardless of
-  distance to the mob.
 
 ## Notes on Minecraft 26.x
 

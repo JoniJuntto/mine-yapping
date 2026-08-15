@@ -2,12 +2,21 @@ import { cors } from "@elysiajs/cors";
 import { auth } from "@mine-yapping/auth";
 import { env } from "@mine-yapping/env/server";
 import { Elysia, t } from "elysia";
-import { getApiKeyUser } from "./access";
+import { getApiKeyUser, invalidateApiKeyUsers } from "./access";
 import { appApi } from "./app-api";
 import { converse } from "./conversation";
 import { promptsApi } from "./prompts";
 import { getProviderKeys } from "./provider-key";
+import { RealtimeConversation } from "./realtime";
 import { finalizeUsage, reserveUsage } from "./usage";
+
+const realtimeSessions = new Map<
+	string,
+	{
+		ready: Promise<RealtimeConversation>;
+		messages: Promise<void>;
+	}
+>();
 
 new Elysia()
 	.use(
@@ -21,7 +30,15 @@ new Elysia()
 	.all("/api/auth/*", async (context) => {
 		const { request, status } = context;
 		if (["POST", "GET"].includes(request.method)) {
-			return auth.handler(request);
+			const response = await auth.handler(request);
+			if (
+				response.ok &&
+				/(?:[\\/]admin[\\/](?:un)?ban-user|[\\/]api-key[\\/](?:delete|update))$/.test(
+					new URL(request.url).pathname,
+				)
+			)
+				invalidateApiKeyUsers();
+			return response;
 		}
 		return status(405);
 	})
@@ -29,11 +46,14 @@ new Elysia()
 	.use(promptsApi)
 	.post(
 		"/api/converse",
-		async ({ body, request, status }) => {
+		async ({ body, request, set, status }) => {
 			const startedAt = Date.now();
 			const identity = await getApiKeyUser(request);
 			if ("error" in identity) {
-				return status(identity.forbidden ? 403 : 401, identity.error);
+				return status(
+					"forbidden" in identity && identity.forbidden ? 403 : 401,
+					identity.error,
+				);
 			}
 			const text = body.text?.trim();
 			const input = body.audio ?? text;
@@ -72,13 +92,29 @@ new Elysia()
 					byokKeys?.elevenLabs ?? env.ELEVENLABS_API_KEY,
 					identity.user.id,
 				);
-				const { usage, ...reply } = result;
-				await finalizeUsage(reservationId, {
-					successful: true,
-					...usage,
-					latencyMs: Date.now() - startedAt,
-				}).catch((cause) => console.error("Could not finalize usage:", cause));
-				return reply;
+				set.headers["Content-Type"] = "audio/pcm";
+				set.headers["X-MineYapping-Transcript"] = Buffer.from(
+					result.transcript,
+				).toString("base64url");
+				set.headers["X-MineYapping-Reply"] = Buffer.from(result.reply).toString(
+					"base64url",
+				);
+				void result.completion.then(({ successful, ttsMs }) => {
+					const latencyMs = Date.now() - startedAt;
+					console.info(
+						`conversation user=${identity.user.id} totalMs=${latencyMs} sttMs=${result.latency.sttMs} llmMs=${result.latency.llmMs} ttsMs=${ttsMs}`,
+					);
+					return finalizeUsage(reservationId, {
+						successful,
+						...result.usage,
+						...result.latency,
+						ttsMs,
+						latencyMs,
+					}).catch((cause) =>
+						console.error("Could not finalize usage:", cause),
+					);
+				});
+				return result.audio;
 			} catch (cause) {
 				console.error(cause);
 				await finalizeUsage(reservationId, {
@@ -104,6 +140,53 @@ new Elysia()
 			}),
 		},
 	)
+	.ws("/api/converse/stream", {
+		query: t.Object({
+			entityId: t.String({ minLength: 1, maxLength: 100 }),
+			entityType: t.String({ minLength: 1, maxLength: 100 }),
+			entityName: t.String({ minLength: 1, maxLength: 100 }),
+			playerName: t.String({ minLength: 1, maxLength: 100 }),
+			dimension: t.String({ minLength: 1, maxLength: 100 }),
+			health: t.String({ minLength: 1, maxLength: 30 }),
+		}),
+		body: t.Union([t.String(), t.Uint8Array()]),
+		open(ws) {
+			const ready = RealtimeConversation.open(
+				ws,
+				ws.data.request,
+				ws.data.query,
+			);
+			realtimeSessions.set(ws.id, { ready, messages: Promise.resolve() });
+			void ready.catch((cause) => {
+				const error =
+					cause instanceof Error ? cause.message : "Conversation failed";
+				ws.send(JSON.stringify({ type: "error", value: error }));
+				ws.close(1011, "failed");
+			});
+		},
+		message(ws, incoming) {
+			const state = realtimeSessions.get(ws.id);
+			if (!state) return;
+			state.messages = state.messages
+				.then(async () => {
+					const conversation = await state.ready;
+					if (typeof incoming === "string") {
+						if (incoming === "commit") conversation.commit();
+						else if (incoming === "cancel") conversation.cancel();
+						return;
+					}
+					conversation.sendAudio(incoming);
+				})
+				.catch(() => undefined);
+		},
+		close(ws) {
+			const state = realtimeSessions.get(ws.id);
+			realtimeSessions.delete(ws.id);
+			void state?.ready
+				.then((conversation) => conversation.cancel())
+				.catch(() => undefined);
+		},
+	})
 	.get("/", () => "OK")
 	.listen(31415, () => {
 		console.log("Server is running on http://localhost:31415");

@@ -33,6 +33,8 @@ function Login() {
 				</span>
 			}
 		>
+			<TwitchButton />
+			<p className="text-center text-ink/55 text-sm">or use email</p>
 			<form onSubmit={submit} className="grid gap-4">
 				<label>
 					Email
@@ -58,6 +60,38 @@ function Login() {
 				</button>
 			</form>
 		</AuthCard>
+	);
+}
+
+export function TwitchButton() {
+	const [error, setError] = useState("");
+	const [pending, setPending] = useState(false);
+	async function signIn() {
+		setPending(true);
+		setError("");
+		const result = await authClient.signIn.social({
+			provider: "twitch",
+			callbackURL: "/dashboard",
+		});
+		setPending(false);
+		if (result.error) setError(result.error.message ?? "Twitch sign in failed");
+	}
+	return (
+		<div className="grid gap-3">
+			<button
+				type="button"
+				disabled={pending}
+				className="button-secondary w-full"
+				onClick={signIn}
+			>
+				{pending ? "Connecting…" : "Continue with Twitch · 1.5× usage"}
+			</button>
+			{error && (
+				<p role="alert" className="alert-error">
+					{error}
+				</p>
+			)}
+		</div>
 	);
 }
 

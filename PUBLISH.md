@@ -31,7 +31,7 @@ the jar, creates a website account and API key, then uses that key in the mod.
   - Support email: joni@pohina.group
   - Donation amount: configure a one-time Polar product
   - Refund policy: No refunds
-  - Monthly allowance: 100 requests for every user
+  - Base monthly allowance: 100 requests; Twitch accounts receive 150
 - [x] Review the model against the current
   [Minecraft EULA](https://www.minecraft.net/eula) and
   [Minecraft Usage Guidelines](https://www.minecraft.net/usage-guidelines).
@@ -127,16 +127,19 @@ orders from one environment do not exist in the other.
 
    ```dotenv
    POLAR_ACCESS_TOKEN=<sandbox organization access token>
+   POLAR_WEBHOOK_SECRET=<sandbox webhook signing secret>
    POLAR_SERVER=sandbox
 	 POLAR_SUCCESS_URL=https://staging.example.com
    ```
 
-5. Sign in as an admin, open **Admin → Settings**, set **Polar donation product ID**
+5. Add a Polar webhook for `order.paid` pointing to
+   `https://staging.example.com/api/auth/polar/webhooks`.
+6. Sign in as an admin, open **Admin → Settings**, set **Polar donation product ID**
    to the sandbox product UUID, and save. Until this value exists, checkout is
    disabled for signed-in users.
-6. Click **Donate** while signed out and signed in, complete each sandbox
+7. Click **Donate** while signed out and signed in, complete each sandbox
    sandbox checkout, and confirm return to the landing page.
-7. Verify successful, failed, canceled, and refunded donations never change the
+8. Verify successful, failed, canceled, and refunded donations never change the
    donor's features or monthly quota.
 
 ### Move to live payments
@@ -156,9 +159,11 @@ orders from one environment do not exist in the other.
 	 POLAR_SUCCESS_URL=https://yapping.arvoitus.com
    ```
 
-5. Deploy/restart the API, then put the **production** product UUID in
+5. Add the production `order.paid` webhook pointing to
+   `https://yapping.arvoitus.com/api/auth/polar/webhooks`.
+6. Deploy/restart the API, then put the **production** product UUID in
    **Admin → Settings**. A sandbox UUID will not work in Production.
-6. Make one controlled live donation. Verify checkout, receipt, unchanged quota,
+7. Make one controlled live donation. Verify checkout, receipt, unchanged quota,
    and the Polar order/payout record. Refund it if appropriate.
 
 Useful official references:
@@ -184,6 +189,7 @@ CORS_ORIGIN=https://yapping.arvoitus.com
 OPENAI_API_KEY=<production project key>
 ELEVENLABS_API_KEY=<production key>
 POLAR_ACCESS_TOKEN=<production organization access token>
+POLAR_WEBHOOK_SECRET=<production webhook signing secret>
 POLAR_SERVER=production
 POLAR_SUCCESS_URL=https://yapping.arvoitus.com/dashboard/account
 DISABLE_SIGN_UP=false
@@ -219,7 +225,7 @@ web image and is already set to `https://yapping.arvoitus.com` in
    it and verify TLS.
 8. Create the first account, promote it to `admin` directly in PostgreSQL, sign
    out, and sign back in so the new role is in the session.
-9. In **Admin → Settings**, set the monthly request count shared by every user
+9. In **Admin → Settings**, set the base monthly request count
    and the live Polar donation product UUID.
 10. Create at least one enabled global `*` fallback personality. The migration
     supplies one; verify it was not deleted.
@@ -425,7 +431,7 @@ non-writing check is wanted.
 - [ ] Successful checkout returns to the landing page.
 - [ ] Successful, failed, canceled, and refunded donations never change features
   or the monthly request limit.
-- [ ] Every user is rejected at the same exact monthly limit.
+- [ ] Standard users are rejected at the base limit and Twitch users at 1.5×.
 - [ ] Refund, receipt, support, and reconciliation procedures are written down.
 
 ### Mod and API

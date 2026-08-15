@@ -19,6 +19,16 @@ export const appSettings = pgTable("app_settings", {
 		.notNull(),
 });
 
+export const donation = pgTable("donation", {
+	id: text("id").primaryKey(),
+	customerId: text("customer_id").notNull(),
+	nickname: text("nickname"),
+	showNickname: boolean("show_nickname").default(false).notNull(),
+	amount: integer("amount").notNull(),
+	currency: text("currency").notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const userProviderKey = pgTable("user_provider_key", {
 	userId: text("user_id")
 		.primaryKey()
@@ -48,7 +58,11 @@ export const usageEvent = pgTable(
 		inputTokens: integer("input_tokens").default(0).notNull(),
 		outputTokens: integer("output_tokens").default(0).notNull(),
 		ttsCharacters: integer("tts_characters").default(0).notNull(),
+		audioMs: integer("audio_ms").default(0).notNull(),
 		latencyMs: integer("latency_ms").notNull(),
+		sttMs: integer("stt_ms").default(0).notNull(),
+		llmMs: integer("llm_ms").default(0).notNull(),
+		ttsMs: integer("tts_ms").default(0).notNull(),
 	},
 	(table) => [
 		index("usage_event_user_created_idx").on(table.userId, table.createdAt),

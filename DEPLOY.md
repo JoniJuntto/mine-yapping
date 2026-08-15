@@ -101,7 +101,10 @@ cat > apps/server/.env <<'EOF'
 DATABASE_URL=postgres://upadmin:PASSWORD@HOST:PORT/mineyapping?sslmode=require
 BETTER_AUTH_SECRET=REPLACE_ME
 BETTER_AUTH_URL=https://yapping.arvoitus.com
+TWITCH_CLIENT_ID=REPLACE_ME
+TWITCH_CLIENT_SECRET=REPLACE_ME
 POLAR_ACCESS_TOKEN=REPLACE_ME
+POLAR_WEBHOOK_SECRET=REPLACE_ME
 POLAR_SUCCESS_URL=https://yapping.arvoitus.com
 POLAR_SERVER=production
 CORS_ORIGIN=https://yapping.arvoitus.com
@@ -249,7 +252,7 @@ curl -sI https://yapping.arvoitus.com/ | head -1
 Full round trip with a real recording (spends OpenAI and ElevenLabs credit):
 
 ```bash
-curl -X POST https://yapping.arvoitus.com/api/converse \
+curl -D response.headers -o reply.pcm -X POST https://yapping.arvoitus.com/api/converse \
   -H 'x-api-key: my_YOUR_DASHBOARD_KEY' \
   -F audio=@speech.wav \
   -F entityId=test-uuid \
@@ -258,7 +261,7 @@ curl -X POST https://yapping.arvoitus.com/api/converse \
   -F playerName=joni \
   -F dimension=minecraft:overworld \
   -F health=10.0/10.0
-# → {"transcript":"...","reply":"...","audio":"<base64 wav>"}
+# → raw 24 kHz, 16-bit, mono PCM in reply.pcm; metadata in X-MineYapping-* headers
 ```
 
 ## Step 10 — Connect the mod
@@ -281,7 +284,8 @@ After launching once, they paste that key into
 ## Protecting provider spend
 
 `/api/converse` verifies a hashed, revocable per-user API key, account bans,
-the same monthly usage limit for every user before calling providers. Also set
+the base monthly usage limit before calling providers. Twitch accounts receive
+1.5× that limit. Also set
 hard spend caps in the OpenAI and ElevenLabs dashboards as a final backstop.
 
 ## Updating a deployment

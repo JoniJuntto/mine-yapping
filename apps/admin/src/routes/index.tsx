@@ -1,10 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LegalFooter } from "../components/app-shell";
-import { authClient } from "../lib/auth-client";
+import { DonationForm } from "../components/donation-form";
+import { api } from "../lib/api";
 
-export const Route = createFileRoute("/")({ component: Landing });
+type Donor = { nickname: string; amount: number; currency: string };
+
+export const Route = createFileRoute("/")({
+	loader: () =>
+		Promise.all([
+			api<Donor[]>("/donations").catch(() => []),
+			api<{ estimatedCostUsd: number }>("/stats").catch(() => ({
+				estimatedCostUsd: null,
+			})),
+		]).then(([donors, stats]) => ({ donors, ...stats })),
+	component: Landing,
+});
 
 function Landing() {
+	const { donors, estimatedCostUsd } = Route.useLoaderData();
 	return (
 		<>
 			<main>
@@ -88,8 +101,18 @@ function Landing() {
 							<h3 className="text-2xl">Use it</h3>
 							<p className="font-black text-3xl">€0</p>
 							<p className="text-ink/65">
-								The mod and all its features are free, with the same monthly
-								limit for every user.
+								The mod and all its features are free. Twitch sign-in includes
+								1.5× the standard monthly usage.
+							</p>
+							<p className="font-semibold">
+								{estimatedCostUsd === null
+									? "Shared API spend is temporarily unavailable."
+									: `${new Intl.NumberFormat("en", {
+											style: "currency",
+											currency: "USD",
+										}).format(
+											estimatedCostUsd,
+										)} estimated shared API spend this month.`}
 							</p>
 						</article>
 						<article className="card border-accent/40">
@@ -98,14 +121,34 @@ function Landing() {
 								Donations are optional and never unlock features or increase
 								usage.
 							</p>
-							<button
-								type="button"
-								className="button-primary"
-								onClick={() => authClient.checkout({ slug: "donate" })}
-							>
-								Donate with Polar
-							</button>
+							<DonationForm />
 						</article>
+					</div>
+				</section>
+				<section className="border-black/10 border-t bg-panel">
+					<div className="mx-auto max-w-4xl px-5 py-16">
+						<p className="eyebrow">Thank you</p>
+						<h2 className="text-4xl">Our donors</h2>
+						{donors.length ? (
+							<ul className="grid list-none gap-3 p-0 sm:grid-cols-2">
+								{donors.map((donor, index) => (
+									<li
+										key={`${donor.nickname}-${donor.currency}-${index}`}
+										className="card flex items-center justify-between gap-4"
+									>
+										<span className="font-semibold">{donor.nickname}</span>
+										<span>
+											{new Intl.NumberFormat("en", {
+												style: "currency",
+												currency: donor.currency,
+											}).format(donor.amount / 100)}
+										</span>
+									</li>
+								))}
+							</ul>
+						) : (
+							<p className="text-ink/65">Be the first donor.</p>
+						)}
 					</div>
 				</section>
 			</main>
