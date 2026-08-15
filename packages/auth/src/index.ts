@@ -57,6 +57,7 @@ export function createAuth() {
 		emailVerification: {
 			sendOnSignUp: true,
 			sendOnSignIn: true,
+			autoSignInAfterVerification: true,
 			sendVerificationEmail: async ({ user, url }) => {
 				void sendAuthEmail(
 					user.email,

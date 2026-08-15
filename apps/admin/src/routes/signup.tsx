@@ -23,7 +23,7 @@ function Signup() {
 			name: String(data.get("name")),
 			email,
 			password: String(data.get("password")),
-			callbackURL: "/login?verified=true",
+			callbackURL: "/dashboard",
 		});
 		setPending(false);
 		if (result.error) setError(result.error.message ?? "Sign up failed");
@@ -34,7 +34,7 @@ function Signup() {
 		setError("");
 		const result = await authClient.sendVerificationEmail({
 			email: sentTo,
-			callbackURL: "/login?verified=true",
+			callbackURL: "/dashboard",
 		});
 		setPending(false);
 		if (result.error)

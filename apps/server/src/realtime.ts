@@ -120,11 +120,7 @@ export class RealtimeConversation {
 										model: "gpt-live-transcribe",
 										delay: "low",
 									},
-									turn_detection: {
-										type: "server_vad",
-										prefix_padding_ms: 200,
-										silence_duration_ms: 300,
-									},
+									turn_detection: null,
 								},
 							},
 						},
