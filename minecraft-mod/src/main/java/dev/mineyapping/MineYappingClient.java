@@ -35,11 +35,15 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -106,6 +110,10 @@ public class MineYappingClient implements ClientModInitializer {
 			spontaneousSpeech(client);
 		});
 		ClientSendMessageEvents.ALLOW_CHAT.register(this::onChat);
+		UseEntityCallback.EVENT.register((player, level, hand, entity, hit) ->
+				level.isClientSide() ? mobInteraction(entity, "interacted with you") : InteractionResult.PASS);
+		AttackEntityCallback.EVENT.register((player, level, hand, entity, hit) ->
+				level.isClientSide() ? mobInteraction(entity, "attacked you") : InteractionResult.PASS);
 	}
 
 	private boolean onChat(String message) {
@@ -120,6 +128,19 @@ public class MineYappingClient implements ClientModInitializer {
 			say(client, ChatFormatting.RED, "Conversation failed: " + exception.getMessage());
 		}
 		return false;
+	}
+
+	private InteractionResult mobInteraction(Entity entity, String action) {
+		Minecraft client = Minecraft.getInstance();
+		if (entity instanceof Mob mob && !apiKey.isBlank() && client.level != null && client.player != null) {
+			try {
+				sendConversation(client, target(client, mob),
+						client.player.getName().getString() + " just " + action + ". React naturally.");
+			} catch (Exception exception) {
+				say(client, ChatFormatting.RED, "Conversation failed: " + exception.getMessage());
+			}
+		}
+		return InteractionResult.PASS;
 	}
 
 	private void spontaneousSpeech(Minecraft client) {
