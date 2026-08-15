@@ -49,6 +49,8 @@ import org.lwjgl.glfw.GLFW;
 
 public class MineYappingClient implements ClientModInitializer {
 	private static final double LISTEN_RADIUS = 8.0;
+	private static final double DEFAULT_SPEECH_CHANCE = 0.5;
+	private static final int SPEECH_CHECK_TICKS = 20 * 30;
 	private static final String DEFAULT_SERVER_URL = "https://yapping.arvoitus.com/api/converse";
 	private static final KeyMapping.Category CATEGORY =
 			KeyMapping.Category.register(Identifier.fromNamespaceAndPath("mineyapping", "conversation"));
@@ -65,12 +67,15 @@ public class MineYappingClient implements ClientModInitializer {
 	private LivingEntity talkingEntity;
 	private String apiKey = "";
 	private URI conversationEndpoint = URI.create(DEFAULT_SERVER_URL);
+	private double speechChance = DEFAULT_SPEECH_CHANCE;
+	private int speechCheckTicks;
 
 	@Override
 	public void onInitializeClient() {
 		ModConfig config = loadConfig();
 		apiKey = config.apiKey();
 		conversationEndpoint = URI.create(config.serverUrl());
+		speechChance = config.speechChance();
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
 				ClientCommands.literal("login")
 						.then(ClientCommands.argument("token", StringArgumentType.string()).executes(context -> {
@@ -93,10 +98,12 @@ public class MineYappingClient implements ClientModInitializer {
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			boolean down = talkKey.isDown();
-			if (down == wasDown) return;
-			wasDown = down;
-			if (down) onTalkStart(client);
-			else onTalkStop(client);
+			if (down != wasDown) {
+				wasDown = down;
+				if (down) onTalkStart(client);
+				else onTalkStop(client);
+			}
+			spontaneousSpeech(client);
 		});
 		ClientSendMessageEvents.ALLOW_CHAT.register(this::onChat);
 	}
@@ -113,6 +120,25 @@ public class MineYappingClient implements ClientModInitializer {
 			say(client, ChatFormatting.RED, "Conversation failed: " + exception.getMessage());
 		}
 		return false;
+	}
+
+	private void spontaneousSpeech(Minecraft client) {
+		if (++speechCheckTicks < SPEECH_CHECK_TICKS) return;
+		speechCheckTicks = 0;
+		if (apiKey.isBlank() || recording != null || client.level == null || client.player == null
+				|| Math.random() >= speechChance) return;
+		List<Mob> nearby = client.level.getEntitiesOfClass(
+				Mob.class,
+				client.player.getBoundingBox().inflate(LISTEN_RADIUS),
+				LivingEntity::isAlive);
+		if (nearby.isEmpty()) return;
+		Mob mob = nearby.get((int) (Math.random() * nearby.size()));
+		try {
+			sendConversation(client, target(client, mob),
+					"Start a brief, natural conversation with " + client.player.getName().getString() + ".");
+		} catch (Exception exception) {
+			say(client, ChatFormatting.RED, "Spontaneous conversation failed: " + exception.getMessage());
+		}
 	}
 
 	private void onTalkStart(Minecraft client) {
@@ -213,18 +239,21 @@ public class MineYappingClient implements ClientModInitializer {
 		try {
 			if (Files.notExists(path)) {
 				Files.writeString(path, "{\n  \"apiKey\": \"\",\n  \"serverUrl\": \"" + DEFAULT_SERVER_URL
-						+ "\"\n}\n", StandardCharsets.UTF_8);
-				return new ModConfig("", DEFAULT_SERVER_URL);
+						+ "\",\n  \"speechChance\": " + DEFAULT_SPEECH_CHANCE + "\n}\n", StandardCharsets.UTF_8);
+				return new ModConfig("", DEFAULT_SERVER_URL, DEFAULT_SPEECH_CHANCE);
 			}
 			ModConfig config = GSON.fromJson(Files.readString(path), ModConfig.class);
 			return new ModConfig(
 					config == null || config.apiKey() == null ? "" : config.apiKey().trim(),
 					config == null || config.serverUrl() == null || config.serverUrl().isBlank()
 							? DEFAULT_SERVER_URL
-							: config.serverUrl().trim());
+							: config.serverUrl().trim(),
+					config == null || config.speechChance() == null || !Double.isFinite(config.speechChance())
+							? DEFAULT_SPEECH_CHANCE
+							: Math.max(0.0, Math.min(1.0, config.speechChance())));
 		} catch (Exception exception) {
 			System.err.println("Could not read " + path + ": " + exception.getMessage());
-			return new ModConfig("", DEFAULT_SERVER_URL);
+			return new ModConfig("", DEFAULT_SERVER_URL, DEFAULT_SPEECH_CHANCE);
 		}
 	}
 
@@ -232,7 +261,7 @@ public class MineYappingClient implements ClientModInitializer {
 		Path path = FabricLoader.getInstance().getConfigDir().resolve("mine-yapping.json");
 		Files.writeString(
 				path,
-				GSON.toJson(new ModConfig(token, conversationEndpoint.toString())),
+				GSON.toJson(new ModConfig(token, conversationEndpoint.toString(), speechChance)),
 				StandardCharsets.UTF_8);
 	}
 
@@ -374,7 +403,7 @@ public class MineYappingClient implements ClientModInitializer {
 			double y,
 			double z) {}
 
-	private record ModConfig(String apiKey, String serverUrl) {}
+	private record ModConfig(String apiKey, String serverUrl, Double speechChance) {}
 
 	private record StreamEvent(String type, String value) {}
 
