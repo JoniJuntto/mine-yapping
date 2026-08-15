@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../lib/auth-client";
+import { localizedUrl, useI18n } from "../lib/i18n";
 import { redirectSignedIn } from "../lib/route-guards";
 
 export const Route = createFileRoute("/login")({
@@ -9,6 +10,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function Login() {
+	const { locale, t } = useI18n();
 	const [error, setError] = useState("");
 	const [forgotPassword, setForgotPassword] = useState(false);
 	const [message, setMessage] = useState("");
@@ -23,8 +25,8 @@ function Login() {
 			password: String(data.get("password")),
 		});
 		setPending(false);
-		if (result.error) setError(result.error.message ?? "Sign in failed");
-		else window.location.href = "/dashboard";
+		if (result.error) setError(result.error.message ?? t("Sign in failed"));
+		else window.location.href = localizedUrl("/dashboard", locale);
 	}
 	async function requestReset(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -33,27 +35,34 @@ function Login() {
 		const data = new FormData(event.currentTarget);
 		const result = await authClient.requestPasswordReset({
 			email: String(data.get("email")),
-			redirectTo: `${window.location.origin}/reset-password`,
+			redirectTo: `${window.location.origin}${localizedUrl("/reset-password", locale)}`,
 		});
 		setPending(false);
 		if (result.error)
-			setError(result.error.message ?? "Could not send reset email");
-		else setMessage("If that account exists, a reset link is on its way.");
+			setError(result.error.message ?? t("Could not send reset email"));
+		else setMessage(t("If that account exists, a reset link is on its way."));
 	}
 	return (
 		<AuthCard
-			title="Welcome back"
+			title={t("Welcome back")}
 			footer={
 				<span>
-					New here? <Link to="/signup">Create an account</Link>
+					{t("New here?")}{" "}
+					<Link to="/signup" search={true}>
+						{t("Create an account")}
+					</Link>
 				</span>
 			}
 		>
 			{forgotPassword ? (
 				<form onSubmit={requestReset} className="grid gap-4">
-					<p>Enter your account email and we’ll send a password reset link.</p>
+					<p>
+						{t(
+							"Enter your account email and we’ll send a password reset link.",
+						)}
+					</p>
 					<label>
-						Email
+						{t("Email")}
 						<input type="email" name="email" autoComplete="email" required />
 					</label>
 					{message && <p role="status">{message}</p>}
@@ -63,27 +72,27 @@ function Login() {
 						</p>
 					)}
 					<button type="submit" disabled={pending} className="button-primary">
-						{pending ? "Sending…" : "Send reset email"}
+						{pending ? t("Sending…") : t("Send reset email")}
 					</button>
 					<button
 						type="button"
 						className="button-secondary"
 						onClick={() => setForgotPassword(false)}
 					>
-						Back to sign in
+						{t("Back to sign in")}
 					</button>
 				</form>
 			) : (
 				<>
 					<TwitchButton />
-					<p className="text-center text-ink/55 text-sm">or use email</p>
+					<p className="text-center text-ink/55 text-sm">{t("or use email")}</p>
 					<form onSubmit={submit} className="grid gap-4">
 						<label>
-							Email
+							{t("Email")}
 							<input type="email" name="email" autoComplete="email" required />
 						</label>
 						<label>
-							Password
+							{t("Password")}
 							<input
 								type="password"
 								name="password"
@@ -98,14 +107,14 @@ function Login() {
 							</p>
 						)}
 						<button type="submit" disabled={pending} className="button-primary">
-							{pending ? "Signing in…" : "Sign in"}
+							{pending ? t("Signing in…") : t("Sign in")}
 						</button>
 						<button
 							type="button"
 							className="text-sm underline"
 							onClick={() => setForgotPassword(true)}
 						>
-							Forgot password?
+							{t("Forgot password?")}
 						</button>
 					</form>
 				</>
@@ -115,6 +124,7 @@ function Login() {
 }
 
 export function TwitchButton() {
+	const { locale, t } = useI18n();
 	const [error, setError] = useState("");
 	const [pending, setPending] = useState(false);
 	async function signIn() {
@@ -122,10 +132,11 @@ export function TwitchButton() {
 		setError("");
 		const result = await authClient.signIn.social({
 			provider: "twitch",
-			callbackURL: "/dashboard",
+			callbackURL: localizedUrl("/dashboard", locale),
 		});
 		setPending(false);
-		if (result.error) setError(result.error.message ?? "Twitch sign in failed");
+		if (result.error)
+			setError(result.error.message ?? t("Twitch sign in failed"));
 	}
 	return (
 		<div className="grid gap-3">
@@ -135,7 +146,7 @@ export function TwitchButton() {
 				className="button-secondary w-full"
 				onClick={signIn}
 			>
-				{pending ? "Connecting…" : "Continue with Twitch · 1.5× usage"}
+				{pending ? t("Connecting…") : t("Continue with Twitch · 1.5× usage")}
 			</button>
 			{error && (
 				<p role="alert" className="alert-error">
@@ -160,6 +171,7 @@ export function AuthCard({
 			<section className="w-full max-w-md">
 				<Link
 					to="/"
+					search={true}
 					className="mb-6 block text-center font-black text-accent text-xl"
 				>
 					Mine Yapping

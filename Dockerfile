@@ -30,7 +30,7 @@ EXPOSE 31415
 CMD ["bun", "run", "apps/server/src/index.ts"]
 
 FROM base AS web-build
-ARG VITE_API_URL=https://yapping.arvoitus.com
+ARG VITE_API_URL=https://mine-yapper.com
 ENV VITE_API_URL=$VITE_API_URL
 RUN bun run --cwd apps/admin build
 

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../lib/auth-client";
+import { localizedUrl, useI18n } from "../lib/i18n";
 import { redirectSignedIn } from "../lib/route-guards";
 import { AuthCard, TwitchButton } from "./login";
 
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/signup")({
 });
 
 function Signup() {
+	const { locale, t } = useI18n();
 	const [error, setError] = useState("");
 	const [sentTo, setSentTo] = useState("");
 	const [pending, setPending] = useState(false);
@@ -23,10 +25,10 @@ function Signup() {
 			name: String(data.get("name")),
 			email,
 			password: String(data.get("password")),
-			callbackURL: "/dashboard",
+			callbackURL: localizedUrl("/dashboard", locale),
 		});
 		setPending(false);
-		if (result.error) setError(result.error.message ?? "Sign up failed");
+		if (result.error) setError(result.error.message ?? t("Sign up failed"));
 		else setSentTo(email);
 	}
 	async function resend() {
@@ -34,24 +36,31 @@ function Signup() {
 		setError("");
 		const result = await authClient.sendVerificationEmail({
 			email: sentTo,
-			callbackURL: "/dashboard",
+			callbackURL: localizedUrl("/dashboard", locale),
 		});
 		setPending(false);
 		if (result.error)
-			setError(result.error.message ?? "Could not resend email");
+			setError(result.error.message ?? t("Could not resend email"));
 	}
 	return (
 		<AuthCard
-			title="Create your account"
+			title={t("Create your account")}
 			footer={
 				<span>
-					Already have one? <Link to="/login">Sign in</Link>
+					{t("Already have one?")}{" "}
+					<Link to="/login" search={true}>
+						{t("Sign in")}
+					</Link>
 				</span>
 			}
 		>
 			{sentTo ? (
 				<div className="grid gap-4">
-					<p>Check {sentTo} for a verification link before signing in.</p>
+					<p>
+						{locale === "fi"
+							? `Tarkista osoitteeseen ${sentTo} lähetetty vahvistuslinkki ennen kirjautumista.`
+							: `Check ${sentTo} for a verification link before signing in.`}
+					</p>
 					{error && (
 						<p role="alert" className="alert-error">
 							{error}
@@ -63,26 +72,26 @@ function Signup() {
 						className="button-secondary"
 						onClick={resend}
 					>
-						{pending ? "Sending…" : "Resend verification email"}
+						{pending ? t("Sending…") : t("Resend verification email")}
 					</button>
 				</div>
 			) : (
 				<>
 					<TwitchButton />
 					<p className="text-center text-ink/55 text-sm">
-						or sign up with email
+						{t("or sign up with email")}
 					</p>
 					<form onSubmit={submit} className="grid gap-4">
 						<label>
-							Name
+							{t("Name")}
 							<input name="name" autoComplete="name" required maxLength={100} />
 						</label>
 						<label>
-							Email
+							{t("Email")}
 							<input type="email" name="email" autoComplete="email" required />
 						</label>
 						<label>
-							Password
+							{t("Password")}
 							<input
 								type="password"
 								name="password"
@@ -97,7 +106,7 @@ function Signup() {
 							</p>
 						)}
 						<button type="submit" disabled={pending} className="button-primary">
-							{pending ? "Creating…" : "Create account"}
+							{pending ? t("Creating…") : t("Create account")}
 						</button>
 					</form>
 				</>

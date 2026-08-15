@@ -1,7 +1,7 @@
 # Publishing Mine Yapping
 
 This is the release runbook for turning the repository into a public, free
-service at `https://yapping.arvoitus.com`, funded by optional donations.
+service at `https://mine-yapper.com`, funded by optional donations.
 
 `DEPLOY.md` is the command-by-command VPS/Caddy/PostgreSQL guide. This document
 covers the larger launch: product decisions, legal and provider setup, payment,
@@ -11,8 +11,8 @@ the downloadable mod, user onboarding, verification, operations, and rollback.
 
 | Part | Production location | How it ships |
 | --- | --- | --- |
-| Product website and dashboard | `https://yapping.arvoitus.com` | `web` Docker container behind Caddy |
-| Auth, donations, admin, and conversation API | `https://yapping.arvoitus.com/api/*` | `server` Docker container behind Caddy |
+| Product website and dashboard | `https://mine-yapper.com` | `web` Docker container behind Caddy |
+| Auth, donations, admin, and conversation API | `https://mine-yapper.com/api/*` | `server` Docker container behind Caddy |
 | PostgreSQL | UpCloud Managed PostgreSQL | Private/TLS database connection |
 | Fabric client mod | GitHub Releases | Free downloadable jar |
 | AI providers | OpenAI + ElevenLabs | Server-side API calls only |
@@ -64,33 +64,51 @@ This is an engineering checklist, not legal or tax advice.
 - [ ] Decide account recovery. The current app has no password reset, email
   verification, or email delivery. For a small closed beta, document manual
   support recovery; before public launch, add a verified recovery path.
-- [ ] Decide account deletion. The current UI has no deletion flow and the Polar
-  customer is not automatically deleted if a database user is deleted. Define a
-  support process or implement deletion before promising self-service deletion.
+- [x] Decide account deletion. **Support-mediated only for launch** (no
+  self-service UI). Privacy already states this. Process:
+  1. User emails `joni@pohina.group` from the account email (or a parent/guardian
+     for a minor), requesting deletion.
+  2. Confirm identity from the account email / Twitch link / recent activity.
+  3. Delete the app user (Better Auth admin `removeUser`, or delete the `user`
+     row). Cascades remove sessions, credentials, API keys, BYOK keys, usage
+     events, and personas. Do **not** delete `donation` rows (accounting / public
+     donor list; keyed by Polar `customerId`, not `userId`).
+  4. In Polar, delete/anonymize the customer with
+     `polar.customers.deleteExternal({ externalId: <userId> })` (or the dashboard
+     equivalent). App user delete does **not** remove the Polar customer today.
+  5. Reply confirming deletion and what was retained (donation accounting,
+     Polar/Twitch/provider-side records, backups until expiry).
+  Do not promise in-product self-service deletion until a UI exists and Polar
+  cleanup is hooked (e.g. Better Auth `user.deleteUser.afterDelete` →
+  `customers.deleteExternal`).
 - [x] Add links to support, Terms, Privacy, and Refund/Cancellation Policy in the
   site footer and checkout-adjacent UI.
-- [ ] Set `POLAR_SUCCESS_URL` to the existing
-	`https://yapping.arvoitus.com`. Do not use the `/success`
-  value currently shown in `DEPLOY.md`; that route does not exist.
-- [ ] Decide whether public sign-up is open. Use `DISABLE_SIGN_UP=false` for a
-  public launch; use `true` only after creating all invited accounts.
-- [ ] Remove the `[DEBUG]` label shown for the player's transcript in Minecraft,
-  or consciously accept it as release UI.
-- [ ] Confirm Windows, macOS, and Linux microphone and audio playback on the exact
-  Minecraft release. Android/PojavLauncher is explicitly unsupported.
+- [x] Set `POLAR_SUCCESS_URL` to
+  `https://mine-yapper.com` (landing page after checkout). Documented in
+  `DEPLOY.md` and the production env block below; there is no `/success` route.
+- [x] Public sign-up is open. `DISABLE_SIGN_UP` defaults to `false` and the
+  production env template sets `DISABLE_SIGN_UP=false`.
+- [x] Player transcript in Minecraft no longer uses a `[DEBUG]` prefix (still
+  shown in dark gray chat).
 
 ### Safety, cost, and reliability
 
-- [ ] Set provider project-level budgets/alerts and the lowest practical hard
+- [x] Set provider project-level budgets/alerts and the lowest practical hard
   spend limits in OpenAI and ElevenLabs.
-- [ ] Add an edge/IP rate limit in Caddy or another trusted layer. Better Auth API
-  key rate limiting is deliberately disabled in `packages/auth/src/index.ts`.
-  The monthly quota limits successful requests, not every abusive attempt.
-- [ ] Verify UpCloud automated backup retention and perform one restore drill.
-- [ ] Choose monitoring and alert destinations for uptime, container restarts,
-  provider failures, database capacity, and provider spend.
-- [ ] Keep all production secrets out of Git and client-side code. Rotate any key
+- [ ] Add an edge/IP rate limit in Caddy or another trusted layer for the free
+  tier (platform OpenAI/ElevenLabs keys). Better Auth API key rate limiting is
+  deliberately disabled in `packages/auth/src/index.ts`. The monthly quota
+  limits successful free requests, not every abusive attempt. This does not
+  apply to BYOK — those requests use the user's own provider keys and do not
+  consume the free allowance.
+- [x] Verify UpCloud automated backup retention and perform one restore drill.
+- [x] Keep all production secrets out of Git and client-side code. Rotate any key
   that has ever appeared in a commit, log, screenshot, shell history, or chat.
+  Verified: `apps/server/.env` is gitignored and untracked; docs use placeholders
+  only; admin/web expose only `VITE_API_URL`; mod jar has no provider secrets
+  (user key stays in local config). No secret-like values found in git history or
+  local shell history. Still rotate any key you know was pasted into a screenshot
+  or external chat.
 
 ## 1. Create the production accounts
 
@@ -98,16 +116,16 @@ Use organization/project accounts rather than personal defaults where the
 provider supports them. Store recovery codes and ownership information in the
 team password manager.
 
-- [ ] Domain/DNS access for `arvoitus.com`.
-- [ ] UpCloud VPS access and a Managed PostgreSQL database in the same zone.
-- [ ] OpenAI API project with billing, scoped production API key, budget, and
+- [x] Domain/DNS access for `arvoitus.com`.
+- [x] UpCloud VPS access and a Managed PostgreSQL database in the same zone.
+- [ x] OpenAI API project with billing, scoped production API key, budget, and
   alerts.
-- [ ] ElevenLabs production API key with usage alerts/limits.
-- [ ] Polar production organization with business/support information.
-- [ ] GitHub repository release access. The repository is public, so its release
+- [x] ElevenLabs production API key with usage alerts/limits.
+- [x] Polar production organization with business/support information.
+- [x] GitHub repository release access. The repository is public, so its release
   assets can be downloaded without a GitHub account.
-- [ ] A support mailbox monitored by a real person.
-- [ ] Uptime/error monitoring and an incident notification channel.
+- [x] A support mailbox monitored by a real person.
+
 
 Record the owner, renewal date, billing account, and recovery method for every
 account. Never put secret values in this file.
@@ -156,11 +174,11 @@ orders from one environment do not exist in the other.
    `apps/server/.env`. Use:
 
    ```dotenv
-	 POLAR_SUCCESS_URL=https://yapping.arvoitus.com
+	 POLAR_SUCCESS_URL=https://mine-yapper.com
    ```
 
 5. Add the production `order.paid` webhook pointing to
-   `https://yapping.arvoitus.com/api/auth/polar/webhooks`.
+   `https://mine-yapper.com/api/auth/polar/webhooks`.
 6. Deploy/restart the API, then put the **production** product UUID in
    **Admin → Settings**. A sandbox UUID will not work in Production.
 7. Make one controlled live donation. Verify checkout, receipt, unchanged quota,
@@ -184,23 +202,23 @@ Create `apps/server/.env` on the VPS with mode `0600`:
 ```dotenv
 DATABASE_URL=postgres://USER:PASSWORD@HOST:PORT/mineyapping?sslmode=require
 BETTER_AUTH_SECRET=<at least 32 random characters>
-BETTER_AUTH_URL=https://yapping.arvoitus.com
+BETTER_AUTH_URL=https://mine-yapper.com
 RESEND_API_KEY=<production Resend API key>
 AUTH_EMAIL_FROM=Mine Yapping <auth@your-verified-domain.example>
-CORS_ORIGIN=https://yapping.arvoitus.com
+CORS_ORIGIN=https://mine-yapper.com
 OPENAI_API_KEY=<production project key>
 ELEVENLABS_API_KEY=<production key>
 POLAR_ACCESS_TOKEN=<production organization access token>
 POLAR_WEBHOOK_SECRET=<production webhook signing secret>
 POLAR_SERVER=production
-POLAR_SUCCESS_URL=https://yapping.arvoitus.com/dashboard/account
+POLAR_SUCCESS_URL=https://mine-yapper.com
 DISABLE_SIGN_UP=false
 NODE_ENV=production
 ```
 
 Generate the auth secret once with `openssl rand -base64 48`. Back it up securely;
 changing it invalidates existing sessions. `VITE_API_URL` is compiled into the
-web image and is already set to `https://yapping.arvoitus.com` in
+web image and is already set to `https://mine-yapper.com` in
 `docker-compose.yml`.
 
 ### Deploy in the safe order
@@ -246,7 +264,7 @@ The current release targets:
 - Fabric API `0.155.2+26.1.2` at build time
 - Java `>=25`
 - Mod version `0.1.0`
-- Production API `https://yapping.arvoitus.com/api/converse`
+- Production API `https://mine-yapper.com/api/converse`
 
 ### Version and release build
 
@@ -367,7 +385,7 @@ Publish this section on the website alongside the download button.
 
 ### Connect the account
 
-1. Open `https://yapping.arvoitus.com`, create an account, and sign in.
+1. Open `https://mine-yapper.com`, create an account, and sign in.
 2. Open **Dashboard → Account** and select **Create key** under **Minecraft API
    keys**.
 3. Copy the key immediately. It is shown only once. Treat it like a password.
@@ -433,7 +451,7 @@ non-writing check is wanted.
 
 ### Website, auth, and admin
 
-- [ ] `https://yapping.arvoitus.com` loads over valid TLS on desktop and mobile.
+- [ ] `https://mine-yapper.com` loads over valid TLS on desktop and mobile.
 - [ ] Sign-up, sign-in, sign-out, session persistence, and wrong-password errors
   work in a private browser.
 - [ ] A normal user cannot open `/admin` or call `/api/admin/*`.

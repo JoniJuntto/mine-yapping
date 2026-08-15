@@ -14,7 +14,7 @@ function PrivacyPage() {
 			<p>
 				This Privacy Policy explains how Pöhinä Group Oy (“we”, “us”, “our”)
 				collects and uses personal data when you use Mine Yapping at
-				yapping.arvoitus.com, related APIs, and the Fabric client mod (the
+				mine-yapper.com, related APIs, and the Fabric client mod (the
 				“Service”).
 			</p>
 			<p>

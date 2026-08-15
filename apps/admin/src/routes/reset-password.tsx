@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../lib/auth-client";
+import { useI18n } from "../lib/i18n";
 import { AuthCard } from "./login";
 
 export const Route = createFileRoute("/reset-password")({
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/reset-password")({
 });
 
 function ResetPassword() {
+	const { t } = useI18n();
 	const [error, setError] = useState("");
 	const [pending, setPending] = useState(false);
 	const [done, setDone] = useState(false);
@@ -27,21 +29,26 @@ function ResetPassword() {
 			token,
 		});
 		setPending(false);
-		if (result.error) setError(result.error.message ?? "Password reset failed");
+		if (result.error)
+			setError(result.error.message ?? t("Password reset failed"));
 		else setDone(true);
 	}
 
 	return (
 		<AuthCard
-			title="Reset your password"
-			footer={<Link to="/login">Sign in</Link>}
+			title={t("Reset your password")}
+			footer={
+				<Link to="/login" search={true}>
+					{t("Sign in")}
+				</Link>
+			}
 		>
 			{done ? (
-				<p>Your password has been updated. You can now sign in.</p>
+				<p>{t("Your password has been updated. You can now sign in.")}</p>
 			) : token ? (
 				<form onSubmit={submit} className="grid gap-4">
 					<label>
-						New password
+						{t("New password")}
 						<input
 							type="password"
 							name="password"
@@ -56,12 +63,12 @@ function ResetPassword() {
 						</p>
 					)}
 					<button type="submit" disabled={pending} className="button-primary">
-						{pending ? "Updating…" : "Update password"}
+						{pending ? t("Updating…") : t("Update password")}
 					</button>
 				</form>
 			) : (
 				<p role="alert" className="alert-error">
-					This reset link is invalid or expired.
+					{t("This reset link is invalid or expired.")}
 				</p>
 			)}
 		</AuthCard>

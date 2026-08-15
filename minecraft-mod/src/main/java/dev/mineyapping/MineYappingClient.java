@@ -55,7 +55,7 @@ public class MineYappingClient implements ClientModInitializer {
 	private static final double LISTEN_RADIUS = 8.0;
 	private static final double DEFAULT_SPEECH_CHANCE = 0.5;
 	private static final int SPEECH_CHECK_TICKS = 20 * 30;
-	private static final String DEFAULT_SERVER_URL = "https://yapping.arvoitus.com/api/converse";
+	private static final String DEFAULT_SERVER_URL = "https://mine-yapper.com/api/converse";
 	private static final KeyMapping.Category CATEGORY =
 			KeyMapping.Category.register(Identifier.fromNamespaceAndPath("mineyapping", "conversation"));
 	private static final HttpClient HTTP = HttpClient.newBuilder()
@@ -317,7 +317,7 @@ public class MineYappingClient implements ClientModInitializer {
 			String transcript = decodeHeader(response, "X-MineYapping-Transcript");
 			String reply = decodeHeader(response, "X-MineYapping-Reply");
 			client.execute(() -> {
-				say(client, ChatFormatting.DARK_GRAY, "[DEBUG] " + transcript);
+				say(client, ChatFormatting.DARK_GRAY, transcript);
 				say(client, ChatFormatting.GOLD, target.entityName() + ": " + reply);
 				play(response.body(), target);
 			});
@@ -479,7 +479,7 @@ public class MineYappingClient implements ClientModInitializer {
 				textMessage.setLength(0);
 				String type = event == null ? null : event.type();
 				if ("transcript".equals(type)) {
-					client.execute(() -> say(client, ChatFormatting.DARK_GRAY, "[DEBUG] " + event.value()));
+					client.execute(() -> say(client, ChatFormatting.DARK_GRAY, event.value()));
 				} else if ("reply".equals(type)) {
 					client.execute(() -> say(client, ChatFormatting.GOLD,
 							target.entityName() + ": " + event.value()));

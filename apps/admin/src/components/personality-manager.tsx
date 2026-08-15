@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 
 type Personality = {
 	id: string;
@@ -112,6 +113,7 @@ const emptyPersonality: PersonalityInput = {
 };
 
 export function PersonalityManager({ admin = false }: { admin?: boolean }) {
+	const { locale, t } = useI18n();
 	const base = admin ? "/admin/personalities" : "/personalities";
 	const [items, setItems] = useState<Personality[]>([]);
 	const [creating, setCreating] = useState(false);
@@ -144,7 +146,14 @@ export function PersonalityManager({ admin = false }: { admin?: boolean }) {
 	}
 
 	async function remove(item: Personality) {
-		if (!confirm(`Delete “${item.label}”? Assigned mobs will re-roll.`)) return;
+		if (
+			!confirm(
+				locale === "fi"
+					? `Poistetaanko ”${item.label}”? Määritetyt hahmot arvotaan uudelleen.`
+					: `Delete “${item.label}”? Assigned mobs will re-roll.`,
+			)
+		)
+			return;
 		await api(`${base}/${item.id}`, { method: "DELETE" });
 		await load();
 	}
@@ -154,10 +163,18 @@ export function PersonalityManager({ admin = false }: { admin?: boolean }) {
 			<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 				<div>
 					<h2 className="m-0 text-2xl">
-						{admin ? "Global personalities" : "Your personalities"}
+						{admin ? t("Global personalities") : t("Your personalities")}
 					</h2>
 					<p className="mb-0 text-ink/60">
-						Use <code>*</code> as the fallback entity type.
+						{locale === "fi" ? (
+							<>
+								Käytä merkkiä <code>*</code> hahmotyypin varavaihtoehtona.
+							</>
+						) : (
+							<>
+								Use <code>*</code> as the fallback entity type.
+							</>
+						)}
 					</p>
 				</div>
 				<button
@@ -165,7 +182,7 @@ export function PersonalityManager({ admin = false }: { admin?: boolean }) {
 					onClick={() => setCreating(true)}
 					className="button-primary"
 				>
-					New personality
+					{t("New personality")}
 				</button>
 			</div>
 			{error && (
@@ -210,21 +227,21 @@ export function PersonalityManager({ admin = false }: { admin?: boolean }) {
 												})
 											}
 										/>
-										Enabled
+										{t("Enabled")}
 									</label>
 									<button
 										type="button"
 										onClick={() => setEditing(item.id)}
 										className="button-secondary"
 									>
-										Edit
+										{t("Edit")}
 									</button>
 									<button
 										type="button"
 										onClick={() => remove(item)}
 										className="button-danger"
 									>
-										Delete
+										{t("Delete")}
 									</button>
 								</div>
 							</div>
@@ -235,7 +252,7 @@ export function PersonalityManager({ admin = false }: { admin?: boolean }) {
 					),
 				)}
 				{!items.length && !creating && !error && (
-					<p className="text-ink/60">No personalities yet.</p>
+					<p className="text-ink/60">{t("No personalities yet.")}</p>
 				)}
 			</div>
 		</section>
@@ -251,6 +268,7 @@ function PersonalityForm({
 	onCancel: () => void;
 	onSave: (value: PersonalityInput) => Promise<void>;
 }) {
+	const { t } = useI18n();
 	const [pending, setPending] = useState(false);
 	async function submit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -268,20 +286,20 @@ function PersonalityForm({
 		<form onSubmit={submit} className="grid gap-4">
 			<div className="grid gap-4 md:grid-cols-2">
 				<label>
-					Entity type
+					{t("Entity type")}
 					<select name="entityType" defaultValue={initial.entityType} required>
 						{!entityTypes.includes(initial.entityType) && (
 							<option value={initial.entityType}>{initial.entityType}</option>
 						)}
 						{entityTypes.map((entityType) => (
 							<option key={entityType} value={entityType}>
-								{entityType === "*" ? "All entities (fallback)" : entityType}
+								{entityType === "*" ? t("All entities (fallback)") : entityType}
 							</option>
 						))}
 					</select>
 				</label>
 				<label>
-					Label
+					{t("Label")}
 					<input
 						name="label"
 						defaultValue={initial.label}
@@ -291,7 +309,7 @@ function PersonalityForm({
 				</label>
 			</div>
 			<label>
-				System prompt
+				{t("System prompt")}
 				<textarea
 					name="prompt"
 					defaultValue={initial.prompt}
@@ -306,14 +324,14 @@ function PersonalityForm({
 					name="enabled"
 					defaultChecked={initial.enabled}
 				/>{" "}
-				Enabled
+				{t("Enabled")}
 			</label>
 			<div className="flex gap-2">
 				<button type="submit" disabled={pending} className="button-primary">
-					{pending ? "Saving…" : "Save"}
+					{pending ? t("Saving…") : t("Save")}
 				</button>
 				<button type="button" onClick={onCancel} className="button-secondary">
-					Cancel
+					{t("Cancel")}
 				</button>
 			</div>
 		</form>

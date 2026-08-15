@@ -1,7 +1,7 @@
 # Deploying mine-yapping to UpCloud
 
 Step-by-step deployment of the backend to an UpCloud VPS at
-**`https://yapping.arvoitus.com`**, alongside the other projects already running
+**`https://mine-yapper.com`**, alongside the other projects already running
 on that host.
 
 This guide assumes the VPS already has:
@@ -52,7 +52,7 @@ Point the subdomain at the VPS. In your DNS provider for `arvoitus.com`:
 Verify before continuing — Caddy cannot issue a certificate until this resolves:
 
 ```bash
-dig +short yapping.arvoitus.com
+dig +short mine-yapper.com
 ```
 
 Confirm the output matches your VPS IP. DNS propagation can take a few minutes.
@@ -100,16 +100,16 @@ It is already covered by `.gitignore`, so it will never be committed.
 cat > apps/server/.env <<'EOF'
 DATABASE_URL=postgres://upadmin:PASSWORD@HOST:PORT/mineyapping?sslmode=require
 BETTER_AUTH_SECRET=REPLACE_ME
-BETTER_AUTH_URL=https://yapping.arvoitus.com
+BETTER_AUTH_URL=https://mine-yapper.com
 RESEND_API_KEY=re_REPLACE_ME
 AUTH_EMAIL_FROM=Mine Yapping <auth@your-verified-domain.example>
 TWITCH_CLIENT_ID=REPLACE_ME
 TWITCH_CLIENT_SECRET=REPLACE_ME
 POLAR_ACCESS_TOKEN=REPLACE_ME
 POLAR_WEBHOOK_SECRET=REPLACE_ME
-POLAR_SUCCESS_URL=https://yapping.arvoitus.com
+POLAR_SUCCESS_URL=https://mine-yapper.com
 POLAR_SERVER=production
-CORS_ORIGIN=https://yapping.arvoitus.com
+CORS_ORIGIN=https://mine-yapper.com
 OPENAI_API_KEY=sk-REPLACE_ME
 ELEVENLABS_API_KEY=sk-REPLACE_ME
 NODE_ENV=production
@@ -196,7 +196,7 @@ Append this to the global `/etc/caddy/Caddyfile`, keeping it alongside your
 other site blocks:
 
 ```caddyfile
-yapping.arvoitus.com {
+mine-yapper.com {
 	encode zstd gzip
 
 	# Voice clips are capped at 5 MB by the app; allow headroom for multipart framing.
@@ -240,21 +240,21 @@ sudo journalctl -u caddy -f
 
 ```bash
 # health check over TLS
-curl https://yapping.arvoitus.com/
+curl https://mine-yapper.com/
 # → OK
 
 # validation still works through the proxy
-curl -i -X POST https://yapping.arvoitus.com/api/converse
+curl -i -X POST https://mine-yapper.com/api/converse
 # → HTTP 422
 
 # certificate is valid
-curl -sI https://yapping.arvoitus.com/ | head -1
+curl -sI https://mine-yapper.com/ | head -1
 ```
 
 Full round trip with a real recording (spends OpenAI and ElevenLabs credit):
 
 ```bash
-curl -D response.headers -o reply.pcm -X POST https://yapping.arvoitus.com/api/converse \
+curl -D response.headers -o reply.pcm -X POST https://mine-yapper.com/api/converse \
   -H 'x-api-key: my_YOUR_DASHBOARD_KEY' \
   -F audio=@speech.wav \
   -F entityId=test-uuid \
@@ -268,7 +268,7 @@ curl -D response.headers -o reply.pcm -X POST https://yapping.arvoitus.com/api/c
 
 ## Step 10 — Connect the mod
 
-The checked-in mod already targets `https://yapping.arvoitus.com/api/converse`.
+The checked-in mod already targets `https://mine-yapper.com/api/converse`.
 Build and distribute it:
 
 ```bash
@@ -347,5 +347,5 @@ docker compose up -d
 ```
 
 To take the site down without touching your other projects, comment out the
-`yapping.arvoitus.com` block in the Caddyfile, `sudo systemctl reload caddy`,
+`mine-yapper.com` block in the Caddyfile, `sudo systemctl reload caddy`,
 then `docker compose down`.

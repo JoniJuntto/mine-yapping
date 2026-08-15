@@ -14,7 +14,7 @@ function TermsPage() {
 			<p>
 				These Terms of Service (“Terms”) govern access to and use of Mine
 				Yapping, operated by Pöhinä Group Oy (“we”, “us”, “our”), including the
-				website at yapping.arvoitus.com, related APIs, and the free Fabric
+				website at mine-yapper.com, related APIs, and the free Fabric
 				Minecraft client mod (together, the “Service”).
 			</p>
 			<p>

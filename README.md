@@ -276,7 +276,7 @@ up to 4 turns, and a different mob should have no idea.
 ## Deployment
 
 See **[DEPLOY.md](DEPLOY.md)** for deploying the backend to an UpCloud VPS at
-`yapping.arvoitus.com` — Docker Compose behind the host's global Caddy, with
+`mine-yapper.com` — Docker Compose behind the host's global Caddy, with
 UpCloud Managed PostgreSQL.
 
 To run the server and web containers locally:

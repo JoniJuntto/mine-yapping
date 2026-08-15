@@ -30,7 +30,7 @@ services:
       context: .
       target: web
       args:
-        VITE_API_URL: https://yapping.arvoitus.com
+        VITE_API_URL: https://mine-yapper.com
     image: mine-yapping-web:latest
     container_name: mine-yapping-web
     restart: unless-stopped

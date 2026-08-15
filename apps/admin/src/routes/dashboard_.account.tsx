@@ -4,6 +4,7 @@ import { AppShell } from "../components/app-shell";
 import { DonationForm } from "../components/donation-form";
 import { api } from "../lib/api";
 import { authClient } from "../lib/auth-client";
+import { useI18n } from "../lib/i18n";
 import { requireUser } from "../lib/route-guards";
 
 type Key = {
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/dashboard_/account")({
 });
 
 function Account() {
+	const { t } = useI18n();
 	const [summary, setSummary] = useState<Summary>();
 	const [keys, setKeys] = useState<Key[]>([]);
 	const [newKey, setNewKey] = useState("");
@@ -83,7 +85,7 @@ function Account() {
 			setSummary((value) =>
 				value ? { ...value, byokConfigured: true } : value,
 			);
-			setByokMessage("Provider keys saved.");
+			setByokMessage(t("Provider keys saved."));
 			setError("");
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message : "Could not save key");
@@ -92,8 +94,8 @@ function Account() {
 
 	return (
 		<AppShell>
-			<p className="eyebrow">Account</p>
-			<h1 className="mt-0 text-4xl">Profile and connection</h1>
+			<p className="eyebrow">{t("Account")}</p>
+			<h1 className="mt-0 text-4xl">{t("Profile and connection")}</h1>
 			{error && (
 				<p role="alert" className="alert-error">
 					{error}
@@ -101,10 +103,10 @@ function Account() {
 			)}
 			<div className="grid gap-6 lg:grid-cols-2">
 				<section className="card">
-					<h2>Profile</h2>
+					<h2>{t("Profile")}</h2>
 					<form onSubmit={updateProfile} className="grid gap-4">
 						<label>
-							Name
+							{t("Name")}
 							<input
 								name="name"
 								defaultValue={summary?.user.name}
@@ -113,28 +115,31 @@ function Account() {
 							/>
 						</label>
 						<label>
-							Email
+							{t("Email")}
 							<input value={summary?.user.email ?? ""} disabled />
 						</label>
 						<button className="button-primary" type="submit">
-							Save profile
+							{t("Save profile")}
 						</button>
 					</form>
 				</section>
 				<section className="card">
-					<h2>Support Mine Yapping</h2>
+					<h2>{t("Support Mine Yapping")}</h2>
 					<p>
-						Donations are optional and never change features or usage limits.
+						{t(
+							"Donations are optional and never change features or usage limits.",
+						)}
 					</p>
 					{summary?.donationsEnabled && (
 						<DonationForm defaultNickname={summary.user.name} />
 					)}
 				</section>
 				<section className="card lg:col-span-2">
-					<h2>Bring your own provider keys</h2>
+					<h2>{t("Bring your own provider keys")}</h2>
 					<p>
-						Use your own OpenAI and ElevenLabs accounts instead of the monthly
-						free allowance.
+						{t(
+							"Use your own OpenAI and ElevenLabs accounts instead of the monthly free allowance.",
+						)}
 					</p>
 					<form onSubmit={saveByokKey} className="grid gap-4">
 						<label>
@@ -146,7 +151,9 @@ function Account() {
 								maxLength={512}
 								required
 							/>
-							<small>The key is encrypted and is never shown again.</small>
+							<small>
+								{t("The key is encrypted and is never shown again.")}
+							</small>
 						</label>
 						<label>
 							ElevenLabs API key
@@ -157,11 +164,13 @@ function Account() {
 								maxLength={512}
 								required
 							/>
-							<small>The key is encrypted and is never shown again.</small>
+							<small>
+								{t("The key is encrypted and is never shown again.")}
+							</small>
 						</label>
 						<div className="flex flex-wrap gap-2">
 							<button type="submit" className="button-primary">
-								{summary?.byokConfigured ? "Replace key" : "Save key"}
+								{summary?.byokConfigured ? t("Replace key") : t("Save key")}
 							</button>
 							{summary?.byokConfigured && (
 								<button
@@ -175,7 +184,7 @@ function Account() {
 											setSummary((value) =>
 												value ? { ...value, byokConfigured: false } : value,
 											);
-											setByokMessage("Using the free tier.");
+											setByokMessage(t("Using the free tier."));
 											setError("");
 										} catch (cause) {
 											setError(
@@ -186,7 +195,7 @@ function Account() {
 										}
 									}}
 								>
-									Remove key
+									{t("Remove key")}
 								</button>
 							)}
 						</div>
@@ -200,9 +209,9 @@ function Account() {
 				<section className="card lg:col-span-2">
 					<div className="flex flex-wrap items-center justify-between gap-3">
 						<div>
-							<h2 className="mb-1">Minecraft API keys</h2>
+							<h2 className="mb-1">{t("Minecraft API keys")}</h2>
 							<p className="m-0 text-ink/60">
-								Join a world and run <code>/login &lt;token&gt;</code>.
+								{t("Join a world and run")} <code>/login &lt;token&gt;</code>.
 							</p>
 						</div>
 						<button
@@ -210,12 +219,12 @@ function Account() {
 							className="button-primary"
 							onClick={createKey}
 						>
-							Create key
+							{t("Create key")}
 						</button>
 					</div>
 					{newKey && (
 						<div className="my-5 rounded-xl bg-lime-100 p-4">
-							<strong>Copy this now. It will not be shown again.</strong>
+							<strong>{t("Copy this now. It will not be shown again.")}</strong>
 							<code className="mt-2 block select-all break-all">{newKey}</code>
 						</div>
 					)}
@@ -236,11 +245,11 @@ function Account() {
 										await loadKeys();
 									}}
 								>
-									Revoke
+									{t("Revoke")}
 								</button>
 							</div>
 						))}
-						{!keys.length && <p className="text-ink/60">No keys yet.</p>}
+						{!keys.length && <p className="text-ink/60">{t("No keys yet.")}</p>}
 					</div>
 				</section>
 			</div>

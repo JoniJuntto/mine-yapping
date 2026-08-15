@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "../components/app-shell";
 import { PersonalityManager } from "../components/personality-manager";
 import { api } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import { MOD_DOWNLOAD_URL } from "../lib/mod-download";
 import { requireUser } from "../lib/route-guards";
 
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function Dashboard() {
+	const { locale, t } = useI18n();
 	const [summary, setSummary] = useState<Summary>();
 	const [error, setError] = useState("");
 	useEffect(() => {
@@ -35,17 +37,22 @@ function Dashboard() {
 		<AppShell>
 			<div className="mb-10 flex flex-wrap items-end justify-between gap-4">
 				<div>
-					<p className="eyebrow">Dashboard</p>
+					<p className="eyebrow">{t("Dashboard")}</p>
 					<h1 className="m-0 text-4xl">
-						Hello{summary ? `, ${summary.user.name}` : ""}.
+						{locale === "fi" ? "Hei" : "Hello"}
+						{summary ? `, ${summary.user.name}` : ""}.
 					</h1>
 				</div>
 				<div className="flex flex-wrap gap-2">
 					<a href={MOD_DOWNLOAD_URL} className="button-primary">
-						Download mod
+						{t("Download mod")}
 					</a>
-					<Link to="/dashboard/account" className="button-secondary">
-						Connect Minecraft
+					<Link
+						to="/dashboard/account"
+						search={true}
+						className="button-secondary"
+					>
+						{t("Connect Minecraft")}
 					</Link>
 				</div>
 			</div>
@@ -56,7 +63,7 @@ function Dashboard() {
 			)}
 			<div className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<Stat
-					label="Requests this month"
+					label={t("Requests this month")}
 					value={
 						summary
 							? `${summary.usage.requests} / ${summary.monthlyRequestLimit}`
@@ -64,11 +71,11 @@ function Dashboard() {
 					}
 				/>
 				<Stat
-					label="BYOK requests"
+					label={t("BYOK requests")}
 					value={summary?.usage.byokRequests.toLocaleString() ?? "—"}
 				/>
 				<Stat
-					label="AI tokens"
+					label={t("AI tokens")}
 					value={
 						summary
 							? (
@@ -78,7 +85,7 @@ function Dashboard() {
 					}
 				/>
 				<Stat
-					label="Spoken characters"
+					label={t("Spoken characters")}
 					value={summary?.usage.ttsCharacters.toLocaleString() ?? "—"}
 				/>
 			</div>
