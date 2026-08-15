@@ -10,6 +10,8 @@ export const Route = createFileRoute("/login")({
 
 function Login() {
 	const [error, setError] = useState("");
+	const [forgotPassword, setForgotPassword] = useState(false);
+	const [message, setMessage] = useState("");
 	const [pending, setPending] = useState(false);
 	async function submit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -24,6 +26,20 @@ function Login() {
 		if (result.error) setError(result.error.message ?? "Sign in failed");
 		else window.location.href = "/dashboard";
 	}
+	async function requestReset(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		setPending(true);
+		setError("");
+		const data = new FormData(event.currentTarget);
+		const result = await authClient.requestPasswordReset({
+			email: String(data.get("email")),
+			redirectTo: `${window.location.origin}/reset-password`,
+		});
+		setPending(false);
+		if (result.error)
+			setError(result.error.message ?? "Could not send reset email");
+		else setMessage("If that account exists, a reset link is on its way.");
+	}
 	return (
 		<AuthCard
 			title="Welcome back"
@@ -33,32 +49,67 @@ function Login() {
 				</span>
 			}
 		>
-			<TwitchButton />
-			<p className="text-center text-ink/55 text-sm">or use email</p>
-			<form onSubmit={submit} className="grid gap-4">
-				<label>
-					Email
-					<input type="email" name="email" autoComplete="email" required />
-				</label>
-				<label>
-					Password
-					<input
-						type="password"
-						name="password"
-						autoComplete="current-password"
-						required
-						minLength={8}
-					/>
-				</label>
-				{error && (
-					<p role="alert" className="alert-error">
-						{error}
-					</p>
-				)}
-				<button type="submit" disabled={pending} className="button-primary">
-					{pending ? "Signing in…" : "Sign in"}
-				</button>
-			</form>
+			{forgotPassword ? (
+				<form onSubmit={requestReset} className="grid gap-4">
+					<p>Enter your account email and we’ll send a password reset link.</p>
+					<label>
+						Email
+						<input type="email" name="email" autoComplete="email" required />
+					</label>
+					{message && <p role="status">{message}</p>}
+					{error && (
+						<p role="alert" className="alert-error">
+							{error}
+						</p>
+					)}
+					<button type="submit" disabled={pending} className="button-primary">
+						{pending ? "Sending…" : "Send reset email"}
+					</button>
+					<button
+						type="button"
+						className="button-secondary"
+						onClick={() => setForgotPassword(false)}
+					>
+						Back to sign in
+					</button>
+				</form>
+			) : (
+				<>
+					<TwitchButton />
+					<p className="text-center text-ink/55 text-sm">or use email</p>
+					<form onSubmit={submit} className="grid gap-4">
+						<label>
+							Email
+							<input type="email" name="email" autoComplete="email" required />
+						</label>
+						<label>
+							Password
+							<input
+								type="password"
+								name="password"
+								autoComplete="current-password"
+								required
+								minLength={8}
+							/>
+						</label>
+						{error && (
+							<p role="alert" className="alert-error">
+								{error}
+							</p>
+						)}
+						<button type="submit" disabled={pending} className="button-primary">
+							{pending ? "Signing in…" : "Sign in"}
+						</button>
+						<button
+							type="button"
+							className="text-sm underline"
+							onClick={() => setForgotPassword(true)}
+						>
+							Forgot password?
+						</button>
+					</form>
+				</>
+			)}
 		</AuthCard>
 	);
 }

@@ -101,6 +101,8 @@ cat > apps/server/.env <<'EOF'
 DATABASE_URL=postgres://upadmin:PASSWORD@HOST:PORT/mineyapping?sslmode=require
 BETTER_AUTH_SECRET=REPLACE_ME
 BETTER_AUTH_URL=https://yapping.arvoitus.com
+RESEND_API_KEY=re_REPLACE_ME
+AUTH_EMAIL_FROM=Mine Yapping <auth@your-verified-domain.example>
 TWITCH_CLIENT_ID=REPLACE_ME
 TWITCH_CLIENT_SECRET=REPLACE_ME
 POLAR_ACCESS_TOKEN=REPLACE_ME

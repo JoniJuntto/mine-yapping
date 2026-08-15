@@ -27,6 +27,8 @@ async function findApiKeyUser(key: string) {
 		.where(eq(user.id, verified.key.referenceId))
 		.limit(1);
 	if (!record) return { error: "API key owner not found" } as const;
+	if (!record.emailVerified)
+		return { error: "Verify your email before using free credits" } as const;
 	if (record.banned) {
 		if (!record.banExpires || record.banExpires > new Date()) {
 			return { error: "Account is banned", forbidden: true } as const;

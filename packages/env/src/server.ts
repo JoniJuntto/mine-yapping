@@ -7,6 +7,8 @@ export const env = createEnv({
 		DATABASE_URL: z.string().min(1),
 		BETTER_AUTH_SECRET: z.string().min(32),
 		BETTER_AUTH_URL: z.url(),
+		RESEND_API_KEY: z.string().min(1),
+		AUTH_EMAIL_FROM: z.string().min(1),
 		TWITCH_CLIENT_ID: z.string().min(1),
 		TWITCH_CLIENT_SECRET: z.string().min(1),
 		POLAR_ACCESS_TOKEN: z.string().min(1),

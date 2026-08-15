@@ -7,9 +7,22 @@ import { checkout, polar, webhooks } from "@polar-sh/better-auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
+import { Resend } from "resend";
 
 import { donorMetadata } from "./donation";
 import { polarClient } from "./lib/payments";
+
+const resend = new Resend(env.RESEND_API_KEY);
+
+async function sendAuthEmail(to: string, subject: string, url: string) {
+	const { error } = await resend.emails.send({
+		from: env.AUTH_EMAIL_FROM,
+		to,
+		subject,
+		text: `${subject}: ${url}\n\nIf you did not request this, ignore this email.`,
+	});
+	if (error) throw new Error(error.message);
+}
 
 export function createAuth() {
 	const db = createDb();
@@ -31,10 +44,32 @@ export function createAuth() {
 		emailAndPassword: {
 			enabled: true,
 			disableSignUp: env.DISABLE_SIGN_UP,
+			requireEmailVerification: true,
+			revokeSessionsOnPasswordReset: true,
+			sendResetPassword: async ({ user, url }) => {
+				void sendAuthEmail(
+					user.email,
+					"Reset your Mine Yapping password",
+					url,
+				).catch(console.error);
+			},
 		},
+		emailVerification: {
+			sendOnSignUp: true,
+			sendOnSignIn: true,
+			sendVerificationEmail: async ({ user, url }) => {
+				void sendAuthEmail(
+					user.email,
+					"Verify your Mine Yapping email",
+					url,
+				).catch(console.error);
+			},
+		},
+		rateLimit: { enabled: true },
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.BETTER_AUTH_URL,
 		advanced: {
+			ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
 			defaultCookieAttributes: {
 				sameSite: "lax",
 				secure: env.NODE_ENV === "production",

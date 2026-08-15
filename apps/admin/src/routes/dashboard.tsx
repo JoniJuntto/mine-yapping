@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "../components/app-shell";
 import { PersonalityManager } from "../components/personality-manager";
 import { api } from "../lib/api";
+import { MOD_DOWNLOAD_URL } from "../lib/mod-download";
 import { requireUser } from "../lib/route-guards";
 
 type Summary = {
@@ -39,9 +40,14 @@ function Dashboard() {
 						Hello{summary ? `, ${summary.user.name}` : ""}.
 					</h1>
 				</div>
-				<Link to="/dashboard/account" className="button-secondary">
-					Connect Minecraft
-				</Link>
+				<div className="flex flex-wrap gap-2">
+					<a href={MOD_DOWNLOAD_URL} className="button-primary">
+						Download mod
+					</a>
+					<Link to="/dashboard/account" className="button-secondary">
+						Connect Minecraft
+					</Link>
+				</div>
 			</div>
 			{error && (
 				<p role="alert" className="alert-error">

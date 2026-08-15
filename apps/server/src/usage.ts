@@ -94,20 +94,22 @@ async function reserveUnderLimit(
 	userId: string,
 	inputType: "audio" | "text",
 	limit: number,
+	quotaKey: string,
 ) {
-	// The correlated user_id makes PostgreSQL acquire the per-user lock before counting.
+	// ponytail: network quotas can group NAT users; use trusted device attestation if false positives matter.
 	const result = await db.execute<{ id: string }>(sql`
 		with quota_lock as materialized (
 			select cast(${userId} as text) as user_id,
-				pg_advisory_xact_lock(hashtext(${userId}))
+				pg_advisory_xact_lock(hashtext(${quotaKey}))
 		)
-		insert into ${usageEvent} ("user_id", "input_type", "successful", "latency_ms")
-		select quota_lock.user_id, ${inputType}, true, 0
+		insert into ${usageEvent} ("user_id", "quota_key", "input_type", "successful", "latency_ms")
+		select quota_lock.user_id, ${quotaKey}, ${inputType}, true, 0
 		from quota_lock
 		where (
 			select count(*)
 			from ${usageEvent}
-			where ${usageEvent.userId} = quota_lock.user_id
+			where (${usageEvent.userId} = quota_lock.user_id
+				or ${usageEvent.quotaKey} = ${quotaKey})
 				and ${usageEvent.billingMode} = 'free'
 				and ${usageEvent.successful} = true
 				and ${usageEvent.createdAt} >= ${monthStart()}
@@ -121,6 +123,7 @@ export async function reserveUsage(
 	userId: string,
 	inputType: "audio" | "text",
 	billingMode: "free" | "byok",
+	quotaKey: string,
 ) {
 	if (billingMode === "byok") {
 		const [event] = await db
@@ -139,6 +142,7 @@ export async function reserveUsage(
 		userId,
 		inputType,
 		await monthlyRequestLimitFor(userId),
+		quotaKey,
 	);
 }
 

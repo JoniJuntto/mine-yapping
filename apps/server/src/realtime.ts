@@ -6,6 +6,7 @@ import {
 	personaForConversation,
 } from "./conversation";
 import { getProviderKeys } from "./provider-key";
+import { quotaKey } from "./rules";
 import { finalizeUsage, reserveUsage } from "./usage";
 
 type ClientSocket = {
@@ -58,6 +59,11 @@ export class RealtimeConversation {
 			identity.user.id,
 			"audio",
 			billingMode,
+			quotaKey(
+				request.headers.get("x-forwarded-for"),
+				env.BETTER_AUTH_SECRET,
+				identity.user.id,
+			),
 		);
 		if (!reservationId) throw new Error("Monthly free usage limit reached");
 		const openAiApiKey = keys?.openAi ?? env.OPENAI_API_KEY;
@@ -93,7 +99,7 @@ export class RealtimeConversation {
 	private static openTranscriber(apiKey: string) {
 		return new Promise<WebSocket>((resolve, reject) => {
 			const socket = new WebSocket(
-				"wss://api.openai.com/v1/realtime?model=gpt-live-transcribe",
+				"wss://api.openai.com/v1/realtime?model=gpt-realtime-2.1",
 				{ headers: { Authorization: `Bearer ${apiKey}` } },
 			);
 			const timeout = setTimeout(() => {

@@ -4,6 +4,7 @@ import {
 	hasRole,
 	monthlyLimit,
 	quotaAllowed,
+	quotaKey,
 } from "./rules";
 
 test("admin checks exact roles", () => {
@@ -24,6 +25,13 @@ test("Twitch accounts get 1.5x monthly usage", () => {
 	expect(monthlyLimit(100, true)).toBe(150);
 	expect(monthlyLimit(101, true)).toBe(151);
 	expect(monthlyLimit(100, false)).toBe(100);
+});
+
+test("quota identity uses the proxy-observed IP without storing it", () => {
+	const first = quotaKey("spoofed, 203.0.113.4", "secret", "user-1");
+	expect(first).toBe(quotaKey("203.0.113.4", "secret", "user-2"));
+	expect(first).not.toContain("203.0.113.4");
+	expect(quotaKey(null, "secret", "user-1")).toBe("user:user-1");
 });
 
 test("API cost uses the app's current provider rates", () => {

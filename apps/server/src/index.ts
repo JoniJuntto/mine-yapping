@@ -8,6 +8,7 @@ import { converse } from "./conversation";
 import { promptsApi } from "./prompts";
 import { getProviderKeys } from "./provider-key";
 import { RealtimeConversation } from "./realtime";
+import { quotaKey } from "./rules";
 import { finalizeUsage, reserveUsage } from "./usage";
 
 const realtimeSessions = new Map<
@@ -76,6 +77,11 @@ new Elysia()
 					identity.user.id,
 					inputType,
 					billingMode,
+					quotaKey(
+						request.headers.get("x-forwarded-for"),
+						env.BETTER_AUTH_SECRET,
+						identity.user.id,
+					),
 				);
 			} catch (cause) {
 				console.error("Could not verify quota:", cause);

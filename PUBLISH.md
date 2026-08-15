@@ -29,7 +29,7 @@ the jar, creates a website account and API key, then uses that key in the mod.
   address, donation amount/currency, refund policy, and monthly allowance.
   - Seller name: Pöhinä Group Oy
   - Support email: joni@pohina.group
-  - Donation amount: configure a one-time Polar product
+  - Donation amount: any amount from 1€ up
   - Refund policy: No refunds
   - Base monthly allowance: 100 requests; Twitch accounts receive 150
 - [x] Review the model against the current
@@ -41,23 +41,23 @@ the jar, creates a website account and API key, then uses that key in the mod.
   on the download page, release notes, and
   store description: **“NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR
   ASSOCIATED WITH MOJANG OR MICROSOFT.”**
-- [ ] Do not use the Minecraft logo, official artwork, game files, or wording
+- [x] Do not use the Minecraft logo, official artwork, game files, or wording
   that implies endorsement. Only distribute this project's jar.
-- [ ] Publish Terms of Service, Privacy Policy, Refund/Cancellation Policy, and a
+- [x] Publish Terms of Service, Privacy Policy, Refund/Cancellation Policy, and a
   support contact before checkout is enabled. The privacy notice must explain
   that microphone audio and text are sent to the service and its OpenAI and
   ElevenLabs subprocessors, what usage/account data is retained, retention
   periods, deletion/contact rights, and international transfers where relevant.
+  Live at `/terms`, `/privacy`, `/refunds`; support `joni@pohina.group`.
 - [ ] Confirm whether an age gate or parental consent is required for the chosen
   markets. Minecraft has many minors; do not silently treat this as adult-only.
-- [ ] Confirm the code license. `fabric.mod.json` says MIT, but the repository has
-  no `LICENSE` file. Add the intended license before distributing binaries.
+- [x] Confirm the code license. Root `LICENSE` is MIT, matching `fabric.mod.json`.
 
 This is an engineering checklist, not legal or tax advice.
 
 ### Product behavior that must be decided or fixed
 
-- [ ] Add a visible **Download mod** link to the landing page and signed-in
+- [x] Add a visible **Download mod** link to the landing page and signed-in
   dashboard. Point it at the stable release asset described below.
 - [x] State that the mod is free, all users have the same monthly allowance, and
   donations grant no features or additional usage.
@@ -67,7 +67,7 @@ This is an engineering checklist, not legal or tax advice.
 - [ ] Decide account deletion. The current UI has no deletion flow and the Polar
   customer is not automatically deleted if a database user is deleted. Define a
   support process or implement deletion before promising self-service deletion.
-- [ ] Add links to support, Terms, Privacy, and Refund/Cancellation Policy in the
+- [x] Add links to support, Terms, Privacy, and Refund/Cancellation Policy in the
   site footer and checkout-adjacent UI.
 - [ ] Set `POLAR_SUCCESS_URL` to the existing
 	`https://yapping.arvoitus.com`. Do not use the `/success`
@@ -185,6 +185,8 @@ Create `apps/server/.env` on the VPS with mode `0600`:
 DATABASE_URL=postgres://USER:PASSWORD@HOST:PORT/mineyapping?sslmode=require
 BETTER_AUTH_SECRET=<at least 32 random characters>
 BETTER_AUTH_URL=https://yapping.arvoitus.com
+RESEND_API_KEY=<production Resend API key>
+AUTH_EMAIL_FROM=Mine Yapping <auth@your-verified-domain.example>
 CORS_ORIGIN=https://yapping.arvoitus.com
 OPENAI_API_KEY=<production project key>
 ELEVENLABS_API_KEY=<production key>
@@ -280,27 +282,45 @@ The current release targets:
 ### GitHub Release and permanent download link
 
 GitHub Releases is already available because the repository is public. Use one
-release asset with a stable filename so the site link never changes:
+release asset with a stable filename so the site link never changes.
 
-1. Copy `mineyapping-<version>.jar` to `mineyapping.jar` for uploading. Do not
-   commit the copy; `build/` is already ignored.
-2. Push the release commit and an annotated tag such as `v0.1.0`.
-3. On GitHub open **Releases → Draft a new release**, choose the tag, title it
-   `Mine Yapping v0.1.0`, and attach `mineyapping.jar`.
-4. Release notes must include the SHA-256 checksum, supported Minecraft/Fabric/
-   Java versions, install steps, changes, known limitations, privacy/terms links,
-   support link, and the unofficial-Minecraft disclaimer.
-5. Mark untested builds as pre-releases. For a production version, publish only
+Pushing an annotated tag such as `v0.1.0` runs
+`.github/workflows/release-mod.yml`, which builds the Fabric jar and publishes a
+GitHub Release with:
+
+- `mineyapping.jar` (stable name used by the website download button)
+- `mineyapping-<version>.jar` (versioned copy)
+- `checksums.sha256`
+
+Manual release checklist:
+
+1. Update `mod_version` in `minecraft-mod/gradle.properties` so it matches the
+   tag you will push (`0.1.0` → `v0.1.0`). Do not commit a copied
+   `mineyapping.jar`; `build/` is already ignored.
+2. Push the release commit and an annotated tag:
+
+   ```bash
+   git tag -a v0.1.0 -m "Mine Yapping v0.1.0"
+   git push origin v0.1.0
+   ```
+
+3. Confirm the Actions run succeeds, then edit the generated release notes with
+   supported Minecraft/Fabric/Java versions, install steps, changes, known
+   limitations, privacy/terms links, and support contact.
+4. Mark untested builds as pre-releases. For a production version, publish only
    after the end-to-end test passes.
-6. Verify these URLs in a signed-out/private browser:
+5. Verify these URLs in a signed-out/private browser:
 
    ```text
    https://github.com/JoniJuntto/mine-yapping/releases/latest
    https://github.com/JoniJuntto/mine-yapping/releases/latest/download/mineyapping.jar
    ```
 
-7. Use the second URL for every **Download mod** button. Never link to a local
+6. Use the second URL for every **Download mod** button. Never link to a local
    Gradle build path or GitHub's automatically generated source archive.
+
+You can also run **Release Fabric mod** via workflow dispatch to build and
+upload jar artifacts without creating a release.
 
 GitHub documents binary attachments in
 [Managing releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository).

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { LegalFooter } from "../components/app-shell";
 import { DonationForm } from "../components/donation-form";
 import { api } from "../lib/api";
+import { MOD_DOWNLOAD_URL } from "../lib/mod-download";
 
 type Donor = { nickname: string; amount: number; currency: string };
 
@@ -24,6 +25,9 @@ function Landing() {
 				<nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
 					<strong className="text-accent text-xl">Mine Yapping</strong>
 					<div className="flex gap-2">
+						<a href={MOD_DOWNLOAD_URL} className="button-secondary">
+							Download mod
+						</a>
 						<Link to="/login" className="button-secondary">
 							Sign in
 						</Link>
@@ -43,7 +47,10 @@ function Landing() {
 							your own personalities and keep every encounter memorable.
 						</p>
 						<div className="mt-8 flex flex-wrap gap-3">
-							<Link to="/signup" className="button-primary px-6 py-3">
+							<a href={MOD_DOWNLOAD_URL} className="button-primary px-6 py-3">
+								Download mod
+							</a>
+							<Link to="/signup" className="button-secondary px-6 py-3">
 								Create free account
 							</Link>
 							<a href="#how-it-works" className="button-secondary px-6 py-3">

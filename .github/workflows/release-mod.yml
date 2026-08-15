@@ -1,0 +1,91 @@
+name: Release Fabric mod
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-mod:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: minecraft-mod
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+          cache-dependency-path: minecraft-mod/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Build mod jar
+        run: |
+          chmod +x gradlew
+          ./gradlew clean build --no-daemon
+
+      - name: Prepare release assets
+        id: assets
+        run: |
+          version="$(grep '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')"
+          versioned="build/libs/mineyapping-${version}.jar"
+          stable="build/libs/mineyapping.jar"
+
+          if [[ ! -f "$versioned" ]]; then
+            echo "Expected jar not found: $versioned"
+            ls -la build/libs || true
+            exit 1
+          fi
+
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            expected="v${version}"
+            if [[ "${{ github.ref_name }}" != "$expected" ]]; then
+              echo "Tag ${{ github.ref_name }} must match mod_version (expected ${expected})"
+              exit 1
+            fi
+          fi
+
+          cp "$versioned" "$stable"
+          shasum -a 256 "$versioned" "$stable" | tee checksums.sha256
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: mineyapping-${{ steps.assets.outputs.version }}
+          path: |
+            minecraft-mod/build/libs/mineyapping.jar
+            minecraft-mod/build/libs/mineyapping-${{ steps.assets.outputs.version }}.jar
+            minecraft-mod/checksums.sha256
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Mine Yapping ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ## Download
+
+            Stable asset (site download link):
+
+            https://github.com/${{ github.repository }}/releases/latest/download/mineyapping.jar
+
+            SHA-256 checksums are attached in `checksums.sha256`.
+
+            NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
+          files: |
+            minecraft-mod/build/libs/mineyapping.jar
+            minecraft-mod/build/libs/mineyapping-${{ steps.assets.outputs.version }}.jar
+            minecraft-mod/checksums.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

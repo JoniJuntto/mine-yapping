@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../lib/auth-client";
 
@@ -29,7 +30,7 @@ export function DonationForm({ defaultNickname = "" }) {
 					required
 				/>
 			</label>
-			<label className="flex-row flex items-center gap-2 font-semibold text-sm">
+			<label className="flex flex-row items-center gap-2 font-semibold text-sm">
 				<input name="showNickname" type="checkbox" />
 				Show nickname in donations list
 			</label>
@@ -41,6 +42,29 @@ export function DonationForm({ defaultNickname = "" }) {
 			<button type="submit" className="button-primary">
 				Donate with Polar
 			</button>
+			<p className="text-ink/55 text-xs leading-5">
+				Donations are optional, from €1, and do not unlock features. By
+				continuing you agree to the{" "}
+				<Link to="/terms" className="underline underline-offset-2">
+					Terms
+				</Link>
+				,{" "}
+				<Link to="/privacy" className="underline underline-offset-2">
+					Privacy Policy
+				</Link>
+				, and{" "}
+				<Link to="/refunds" className="underline underline-offset-2">
+					Refund Policy
+				</Link>
+				. Support:{" "}
+				<a
+					href="mailto:joni@pohina.group"
+					className="underline underline-offset-2"
+				>
+					joni@pohina.group
+				</a>
+				.
+			</p>
 		</form>
 	);
 }

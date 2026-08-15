@@ -89,4 +89,28 @@ small {
 	.eyebrow {
 		@apply mb-2 font-bold text-accent text-sm uppercase tracking-[0.18em];
 	}
+	.legal-prose {
+		@apply text-ink/80 text-base leading-7;
+	}
+	.legal-prose h2 {
+		@apply mt-10 mb-3 text-ink text-2xl;
+	}
+	.legal-prose p,
+	.legal-prose ul,
+	.legal-prose ol {
+		@apply mb-4;
+	}
+	.legal-prose ul,
+	.legal-prose ol {
+		@apply list-outside space-y-2 pl-5;
+	}
+	.legal-prose ul {
+		@apply list-disc;
+	}
+	.legal-prose ol {
+		@apply list-decimal;
+	}
+	.legal-prose a {
+		@apply font-semibold text-accent underline underline-offset-2;
+	}
 }

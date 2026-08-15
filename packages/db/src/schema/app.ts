@@ -48,6 +48,7 @@ export const usageEvent = pgTable(
 		userId: text("user_id")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
+		quotaKey: text("quota_key"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		successful: boolean("successful").notNull(),
 		billingMode: text("billing_mode")
@@ -66,6 +67,7 @@ export const usageEvent = pgTable(
 	},
 	(table) => [
 		index("usage_event_user_created_idx").on(table.userId, table.createdAt),
+		index("usage_event_quota_created_idx").on(table.quotaKey, table.createdAt),
 		index("usage_event_created_idx").on(table.createdAt),
 	],
 );

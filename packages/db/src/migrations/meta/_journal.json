@@ -64,6 +64,13 @@
       "when": 1786777181896,
       "tag": "0008_slim_psynapse",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786782811164,
+      "tag": "0009_parched_midnight",
+      "breakpoints": true
     }
   ]
 }

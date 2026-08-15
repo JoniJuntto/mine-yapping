@@ -114,6 +114,8 @@ startup if any is missing:
 | `DATABASE_URL` | PostgreSQL connection string |
 | `BETTER_AUTH_SECRET` | min. 32 characters |
 | `BETTER_AUTH_URL` | valid URL, e.g. `http://localhost:31415` |
+| `RESEND_API_KEY` | Resend API key for verification and password-reset email |
+| `AUTH_EMAIL_FROM` | verified sender, e.g. `Mine Yapping <auth@example.com>` |
 | `TWITCH_CLIENT_ID` | Twitch application client ID |
 | `TWITCH_CLIENT_SECRET` | Twitch application client secret |
 | `POLAR_ACCESS_TOKEN` | any non-empty string works for local play |
@@ -237,7 +239,8 @@ use the generated **Minecraft Client** run configuration.
 Create a Minecraft key under **Dashboard → Account**, join a world, and run
 `/login <token>` in chat. For local testing, set `serverUrl` in
 `.minecraft/config/mine-yapping.json` to
-`http://localhost:31415/api/converse`.
+`http://localhost:31415/api/converse`. Set `speechChance` from `0` to `1` to
+control the chance of a nearby mob speaking every 30 seconds (default `0.5`).
 
 To play with it normally, drop the jar into `.minecraft/mods` alongside Fabric
 Loader ≥ 0.19.3 and Fabric API.

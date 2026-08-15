@@ -1,3 +1,5 @@
+import { createHmac } from "node:crypto";
+
 export const hasRole = (role: string | null | undefined, expected: string) =>
 	role?.split(",").includes(expected) ?? false;
 
@@ -6,6 +8,17 @@ export const quotaAllowed = (requests: number, limit: number) =>
 
 export const monthlyLimit = (baseLimit: number, hasTwitch: boolean) =>
 	hasTwitch ? Math.floor(baseLimit * 1.5) : baseLimit;
+
+export function quotaKey(
+	forwardedFor: string | null,
+	secret: string,
+	userId: string,
+) {
+	const ip = forwardedFor?.split(",").at(-1)?.trim();
+	return ip
+		? createHmac("sha256", secret).update(ip).digest("base64url")
+		: `user:${userId}`;
+}
 
 // Direct provider prices as of 2026-08-15.
 const USD_PER_INPUT_TOKEN = 0.2 / 1_000_000;
