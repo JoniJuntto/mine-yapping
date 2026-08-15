@@ -297,7 +297,8 @@ async function generateReply(
 			reasoning: { effort: "none" },
 			text: { format: { type: "text" }, verbosity: "low" },
 			max_output_tokens: 120,
-			prompt_cache_key: historyKey,
+			// ponytail: OpenAI caps prompt_cache_key at 64 chars; truncating only costs cache locality
+			prompt_cache_key: historyKey.slice(0, 64),
 			store: false,
 			stream: true,
 		}),
