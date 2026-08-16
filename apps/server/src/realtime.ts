@@ -113,7 +113,7 @@ export class RealtimeConversation {
 	private static openTranscriber(apiKey: string, language: Language) {
 		return new Promise<WebSocket>((resolve, reject) => {
 			const socket = new WebSocket(
-				"wss://api.openai.com/v1/realtime?model=gpt-realtime-2.1",
+				"wss://api.openai.com/v1/realtime?intent=transcription",
 				{ headers: { Authorization: `Bearer ${apiKey}` } },
 			);
 			const timeout = setTimeout(() => {
