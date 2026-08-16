@@ -21,7 +21,10 @@ export function CreditPacks({
 
 	async function buy(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
-		const data = new FormData(event.currentTarget);
+		const data = new FormData(
+			event.currentTarget,
+			(event.nativeEvent as SubmitEvent).submitter,
+		);
 		const slug = String(data.get("slug"));
 		const result = await authClient.checkout({
 			slug,
