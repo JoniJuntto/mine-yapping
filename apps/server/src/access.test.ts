@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import {
 	estimatedApiCostUsd,
 	hasRole,
+	language,
+	languageName,
 	monthlyLimit,
 	quotaAllowed,
 	quotaKey,
@@ -12,6 +14,16 @@ test("admin checks exact roles", () => {
 	expect(hasRole("user,admin", "admin")).toBe(true);
 	expect(hasRole("superadmin", "admin")).toBe(false);
 	expect(hasRole("user", "admin")).toBe(false);
+});
+
+test("language falls back to Finnish unless English is explicitly stored", () => {
+	expect(language("en")).toBe("en");
+	expect(language("fi")).toBe("fi");
+	expect(language(null)).toBe("fi");
+	expect(language(undefined)).toBe("fi");
+	expect(language("sv")).toBe("fi");
+	expect(languageName(language(null))).toBe("Finnish");
+	expect(languageName(language("en"))).toBe("English");
 });
 
 test("quota stops at the plan limit", () => {

@@ -4,15 +4,19 @@ import {
 	Outlet,
 	Scripts,
 } from "@tanstack/react-router";
-import { alternateLinks, getLocale, translate } from "../lib/i18n";
+import {
+	alternateLinks,
+	getLocale,
+	translate,
+	useRestoreLocale,
+} from "../lib/i18n";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
-	validateSearch: (search: Record<string, unknown>) => ({
-		lang: search.lang === "fi" ? ("fi" as const) : undefined,
-	}),
-	head: ({ location }) => {
-		const locale = getLocale(location.search);
+	validateSearch: (search: Record<string, unknown>): { lang?: "en" } =>
+		search.lang === "en" ? { lang: "en" } : {},
+	head: ({ match }) => {
+		const locale = getLocale(match.search);
 		return {
 			meta: [
 				{ charSet: "utf-8" },
@@ -38,7 +42,7 @@ export const Route = createRootRoute({
 			],
 			links: [
 				{ rel: "stylesheet", href: appCss },
-				...alternateLinks(location.pathname),
+				...alternateLinks(match.pathname),
 			],
 		};
 	},
@@ -47,6 +51,7 @@ export const Route = createRootRoute({
 
 function Root() {
 	const locale = getLocale(Route.useSearch());
+	useRestoreLocale(locale);
 	return (
 		<html lang={locale}>
 			<head>

@@ -3,12 +3,18 @@ import { appSettings, donation, usageEvent } from "@mine-yapping/db/schema/app";
 import { apikey, user } from "@mine-yapping/db/schema/auth";
 import { count, desc, eq, ilike, or, sql, sum } from "drizzle-orm";
 import { Elysia, t } from "elysia";
-import { getSession, hasRole, invalidateApiKeyUsers } from "./access";
+import {
+	getApiKeyUser,
+	getSession,
+	hasRole,
+	invalidateApiKeyUsers,
+} from "./access";
 import {
 	deleteProviderKeys,
 	hasProviderKeys,
 	saveProviderKeys,
 } from "./provider-key";
+import { language } from "./rules";
 import {
 	clearSettingsCache,
 	getSettings,
@@ -17,6 +23,17 @@ import {
 	usageFor,
 } from "./usage";
 
+const languageSchema = t.Union([t.Literal("fi"), t.Literal("en")]);
+
+async function languageFor(userId: string) {
+	const [record] = await db
+		.select({ language: user.language })
+		.from(user)
+		.where(eq(user.id, userId))
+		.limit(1);
+	return language(record?.language);
+}
+
 const sessionApi = new Elysia({ prefix: "/api" })
 	.resolve(async ({ request, status }) => {
 		const session = await getSession(request);
@@ -24,21 +41,35 @@ const sessionApi = new Elysia({ prefix: "/api" })
 		return { currentUser: session.user };
 	})
 	.get("/me/summary", async ({ currentUser }) => {
-		const [monthlyRequestLimit, usage, byokConfigured, settings] =
+		const [monthlyRequestLimit, usage, byokConfigured, settings, language] =
 			await Promise.all([
 				monthlyRequestLimitFor(currentUser.id),
 				usageFor(currentUser.id),
 				hasProviderKeys(currentUser.id),
 				getSettings(),
+				languageFor(currentUser.id),
 			]);
 		return {
-			user: currentUser,
+			user: { ...currentUser, language },
 			usage,
 			byokConfigured,
 			monthlyRequestLimit,
 			donationsEnabled: !!settings.polarProductId,
 		};
 	})
+	.patch(
+		"/me",
+		async ({ body, currentUser }) => {
+			await db
+				.update(user)
+				.set({ language: body.language })
+				.where(eq(user.id, currentUser.id));
+			// The API-key identity cache holds the old language for up to a minute.
+			invalidateApiKeyUsers();
+			return { language: body.language };
+		},
+		{ body: t.Object({ language: languageSchema }) },
+	)
 	.put(
 		"/me/provider-keys",
 		async ({ body, currentUser }) => {
@@ -68,6 +99,20 @@ const sessionApi = new Elysia({ prefix: "/api" })
 		await deleteProviderKeys(currentUser.id);
 		return status(204);
 	});
+
+// The mod authenticates with its Minecraft API key, not a browser session.
+const modApi = new Elysia({ prefix: "/api" }).get(
+	"/me/language",
+	async ({ request, status }) => {
+		const identity = await getApiKeyUser(request);
+		if ("error" in identity)
+			return status(
+				"forbidden" in identity && identity.forbidden ? 403 : 401,
+				identity.error,
+			);
+		return { language: language(identity.user.language) };
+	},
+);
 
 const publicApi = new Elysia({ prefix: "/api" })
 	.get("/stats", async () => ({
@@ -188,4 +233,8 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 		},
 	);
 
-export const appApi = new Elysia().use(publicApi).use(sessionApi).use(adminApi);
+export const appApi = new Elysia()
+	.use(publicApi)
+	.use(modApi)
+	.use(sessionApi)
+	.use(adminApi);

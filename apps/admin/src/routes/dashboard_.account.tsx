@@ -4,7 +4,12 @@ import { AppShell } from "../components/app-shell";
 import { DonationForm } from "../components/donation-form";
 import { api } from "../lib/api";
 import { authClient } from "../lib/auth-client";
-import { useI18n } from "../lib/i18n";
+import {
+	type Locale,
+	localizedUrl,
+	rememberLocale,
+	useI18n,
+} from "../lib/i18n";
 import { requireUser } from "../lib/route-guards";
 
 type Key = {
@@ -14,7 +19,7 @@ type Key = {
 	createdAt: Date;
 };
 type Summary = {
-	user: { name: string; email: string };
+	user: { name: string; email: string; language: Locale };
 	donationsEnabled: boolean;
 	byokConfigured: boolean;
 };
@@ -25,7 +30,7 @@ export const Route = createFileRoute("/dashboard_/account")({
 });
 
 function Account() {
-	const { t } = useI18n();
+	const { locale, t } = useI18n();
 	const [summary, setSummary] = useState<Summary>();
 	const [keys, setKeys] = useState<Key[]>([]);
 	const [newKey, setNewKey] = useState("");
@@ -46,20 +51,26 @@ function Account() {
 	async function updateProfile(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		const data = new FormData(event.currentTarget);
-		const result = await authClient.updateUser({
-			name: String(data.get("name")).trim(),
-		});
+		const name = String(data.get("name")).trim();
+		const language: Locale = data.get("language") === "en" ? "en" : "fi";
+		const result = await authClient.updateUser({ name });
 		if (result.error)
-			setError(result.error.message ?? "Could not update profile");
-		else
-			setSummary((value) =>
-				value
-					? {
-							...value,
-							user: { ...value.user, name: String(data.get("name")).trim() },
-						}
-					: value,
+			return setError(result.error.message ?? "Could not update profile");
+		try {
+			await api("/me", { method: "PATCH", body: JSON.stringify({ language }) });
+		} catch (cause) {
+			return setError(
+				cause instanceof Error ? cause.message : "Could not update profile",
 			);
+		}
+		setSummary((value) =>
+			value ? { ...value, user: { ...value.user, name, language } } : value,
+		);
+		rememberLocale(language);
+		setError("");
+		// The site follows the URL, so a change only shows after re-navigating.
+		if (language !== locale)
+			window.location.href = localizedUrl("/dashboard/account", language);
 	}
 
 	async function createKey() {
@@ -117,6 +128,20 @@ function Account() {
 						<label>
 							{t("Email")}
 							<input value={summary?.user.email ?? ""} disabled />
+						</label>
+						<label>
+							{t("Language")}
+							<select
+								name="language"
+								key={summary?.user.language}
+								defaultValue={summary?.user.language ?? "fi"}
+							>
+								<option value="fi">{t("Finnish")}</option>
+								<option value="en">{t("English")}</option>
+							</select>
+							<small>
+								{t("Mob replies, speech recognition, and this site.")}
+							</small>
 						</label>
 						<button className="button-primary" type="submit">
 							{t("Save profile")}

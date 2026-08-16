@@ -1,7 +1,12 @@
 import { Link, useLocation, useSearch } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { authClient } from "../lib/auth-client";
-import { getLocale, localizedUrl, translate } from "../lib/i18n";
+import {
+	getLocale,
+	localizedUrl,
+	rememberLocale,
+	translate,
+} from "../lib/i18n";
 import { MOD_DOWNLOAD_URL } from "../lib/mod-download";
 
 const navClass =
@@ -97,17 +102,19 @@ function LanguageSwitch() {
 		<span>
 			<span className="sr-only">{translate(locale, "Language")}: </span>
 			<a
-				href={localizedUrl(location.pathname, "en")}
-				className={locale === "en" ? "font-black text-ink" : undefined}
-			>
-				EN
-			</a>
-			{" / "}
-			<a
 				href={localizedUrl(location.pathname, "fi")}
+				onClick={() => rememberLocale("fi")}
 				className={locale === "fi" ? "font-black text-ink" : undefined}
 			>
 				FI
+			</a>
+			{" / "}
+			<a
+				href={localizedUrl(location.pathname, "en")}
+				onClick={() => rememberLocale("en")}
+				className={locale === "en" ? "font-black text-ink" : undefined}
+			>
+				EN
 			</a>
 		</span>
 	);

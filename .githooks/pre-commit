@@ -1,0 +1,19 @@
+#!/bin/sh
+
+file=minecraft-mod/gradle.properties
+current=$(sed -n 's/^mod_version=//p' "$file")
+next=$(printf '%s\n' "$current" | awk -F. 'NF == 3 && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ { print $1 "." $2 "." ($3 + 1) }')
+[ -n "$next" ] || { echo "Invalid mod_version: $current" >&2; exit 1; }
+
+printf 'Bump mod_version %s -> %s? [y/N] ' "$current" "$next" >/dev/tty 2>/dev/null || exit 0
+IFS= read -r answer </dev/tty 2>/dev/null || exit 0
+case "$answer" in
+	[yY]|[yY][eE][sS]) ;;
+	*) exit 0 ;;
+esac
+
+tmp="$file.tmp.$$"
+trap 'rm -f "$tmp"' EXIT HUP INT TERM
+awk -v version="$next" '/^mod_version=/ { print "mod_version=" version; next } { print }' "$file" >"$tmp" && mv "$tmp" "$file"
+git add -- "$file"
+echo "Bumped mod_version to $next"

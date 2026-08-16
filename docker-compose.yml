@@ -46,3 +46,22 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+  docs:
+    build:
+      context: .
+      target: docs
+    image: mine-yapping-docs:latest
+    container_name: mine-yapping-docs
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4002:4002"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "const r = await fetch('http://localhost:4002/').catch(() => null); process.exit(r?.ok ? 0 : 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

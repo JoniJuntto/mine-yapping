@@ -3,6 +3,15 @@ import { createHmac } from "node:crypto";
 export const hasRole = (role: string | null | undefined, expected: string) =>
 	role?.split(",").includes(expected) ?? false;
 
+export type Language = "fi" | "en";
+
+// Finnish is the product default: anything missing or unrecognised resolves to it.
+export const language = (value: string | null | undefined): Language =>
+	value === "en" ? "en" : "fi";
+
+export const languageName = (value: Language) =>
+	value === "fi" ? "Finnish" : "English";
+
 export const quotaAllowed = (requests: number, limit: number) =>
 	requests < limit;
 

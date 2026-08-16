@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -62,6 +63,44 @@ public class MineYappingClient implements ClientModInitializer {
 			.connectTimeout(Duration.ofSeconds(5))
 			.build();
 	private static final Gson GSON = new Gson();
+	private static final long LANGUAGE_REFRESH_MS = 5 * 60_000L;
+
+	// Chat lines follow the dashboard language, not Minecraft's, so that one
+	// setting covers the site, the mob replies and the mod's own messages.
+	private static final Map<String, String> FI = Map.ofEntries(
+			Map.entry("MineYapping login saved.", "MineYapping-kirjautuminen tallennettu."),
+			Map.entry("Could not save login: %s", "Kirjautumisen tallennus epäonnistui: %s"),
+			Map.entry("Thinking...", "Mietitään..."),
+			Map.entry("Conversation failed: %s", "Keskustelu epäonnistui: %s"),
+			Map.entry("Spontaneous conversation failed: %s", "Oma-aloitteinen keskustelu epäonnistui: %s"),
+			Map.entry("Look at a mob or move within %d blocks.", "Katso hahmoa tai siirry %d lohkon säteelle."),
+			Map.entry("Listening to %s...", "Kuunnellaan hahmoa %s..."),
+			Map.entry("Microphone unavailable: %s", "Mikrofoni ei ole käytettävissä: %s"),
+			Map.entry("Hold V a little longer so I can hear you.",
+					"Pidä V-näppäintä hetki pidempään, jotta kuulen sinut."),
+			Map.entry("Recording failed: %s", "Äänitys epäonnistui: %s"),
+			Map.entry("Run /login <token> with your dashboard API key",
+					"Suorita /login <token> hallintapaneelin API-avaimellasi"),
+			Map.entry("Conversation failed (%d): %s", "Keskustelu epäonnistui (%d): %s"),
+			Map.entry("Server response is missing %s", "Palvelimen vastauksesta puuttuu %s"),
+			Map.entry("Speech playback failed: %s", "Puheen toisto epäonnistui: %s"),
+			Map.entry("24 kHz stereo playback is not supported", "24 kHz:n stereotoistoa ei tueta"),
+			Map.entry("24 kHz microphone not supported", "24 kHz:n mikrofonia ei tueta"),
+			Map.entry("%s just interacted with you. React naturally.",
+					"%s on juuri ollut vuorovaikutuksessa kanssasi. Reagoi luontevasti."),
+			Map.entry("%s just attacked you. React naturally.",
+					"%s hyökkäsi juuri kimppuusi. Reagoi luontevasti."),
+			Map.entry("Start a brief, natural conversation with %s.",
+					"Aloita lyhyt, luonteva keskustelu pelaajan %s kanssa."));
+
+	private static volatile String locale = "fi";
+	private volatile long languageCheckedAt;
+
+	/** Finnish is the default; the dashboard opts an account into English. */
+	private static String msg(String english, Object... args) {
+		String template = "fi".equals(locale) ? FI.getOrDefault(english, english) : english;
+		return args.length == 0 ? template : String.format(template, args);
+	}
 
 	private KeyMapping talkKey;
 	private boolean wasDown;
@@ -80,6 +119,7 @@ public class MineYappingClient implements ClientModInitializer {
 		apiKey = config.apiKey();
 		conversationEndpoint = URI.create(config.serverUrl());
 		speechChance = config.speechChance();
+		refreshLanguage();
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
 				ClientCommands.literal("login")
 						.then(ClientCommands.argument("token", StringArgumentType.string()).executes(context -> {
@@ -87,10 +127,12 @@ public class MineYappingClient implements ClientModInitializer {
 							try {
 								saveConfig(token);
 								apiKey = token;
-								context.getSource().sendFeedback(Component.literal("MineYapping login saved."));
+								refreshLanguage();
+								context.getSource().sendFeedback(Component.literal(msg("MineYapping login saved.")));
 								return 1;
 							} catch (Exception exception) {
-								context.getSource().sendError(Component.literal("Could not save login: " + exception.getMessage()));
+								context.getSource().sendError(
+										Component.literal(msg("Could not save login: %s", exception.getMessage())));
 								return 0;
 							}
 						}))));
@@ -110,10 +152,12 @@ public class MineYappingClient implements ClientModInitializer {
 			spontaneousSpeech(client);
 		});
 		ClientSendMessageEvents.ALLOW_CHAT.register(this::onChat);
-		UseEntityCallback.EVENT.register((player, level, hand, entity, hit) ->
-				level.isClientSide() ? mobInteraction(entity, "interacted with you") : InteractionResult.PASS);
-		AttackEntityCallback.EVENT.register((player, level, hand, entity, hit) ->
-				level.isClientSide() ? mobInteraction(entity, "attacked you") : InteractionResult.PASS);
+		UseEntityCallback.EVENT.register((player, level, hand, entity, hit) -> level.isClientSide()
+				? mobInteraction(entity, "%s just interacted with you. React naturally.")
+				: InteractionResult.PASS);
+		AttackEntityCallback.EVENT.register((player, level, hand, entity, hit) -> level.isClientSide()
+				? mobInteraction(entity, "%s just attacked you. React naturally.")
+				: InteractionResult.PASS);
 	}
 
 	private boolean onChat(String message) {
@@ -122,22 +166,22 @@ public class MineYappingClient implements ClientModInitializer {
 		LivingEntity entity = findTarget(client);
 		if (entity == null) return true;
 		try {
-			say(client, ChatFormatting.GRAY, "Thinking...");
+			say(client, ChatFormatting.GRAY, msg("Thinking..."));
 			sendConversation(client, target(client, entity), message);
 		} catch (Exception exception) {
-			say(client, ChatFormatting.RED, "Conversation failed: " + exception.getMessage());
+			say(client, ChatFormatting.RED, msg("Conversation failed: %s", exception.getMessage()));
 		}
 		return false;
 	}
 
-	private InteractionResult mobInteraction(Entity entity, String action) {
+	private InteractionResult mobInteraction(Entity entity, String template) {
 		Minecraft client = Minecraft.getInstance();
 		if (entity instanceof Mob mob && !apiKey.isBlank() && client.level != null && client.player != null) {
 			try {
 				sendConversation(client, target(client, mob),
-						client.player.getName().getString() + " just " + action + ". React naturally.");
+						msg(template, client.player.getName().getString()));
 			} catch (Exception exception) {
-				say(client, ChatFormatting.RED, "Conversation failed: " + exception.getMessage());
+				say(client, ChatFormatting.RED, msg("Conversation failed: %s", exception.getMessage()));
 			}
 		}
 		return InteractionResult.PASS;
@@ -155,10 +199,10 @@ public class MineYappingClient implements ClientModInitializer {
 		if (nearby.isEmpty()) return;
 		Mob mob = nearby.get((int) (Math.random() * nearby.size()));
 		try {
-			sendConversation(client, target(client, mob),
-					"Start a brief, natural conversation with " + client.player.getName().getString() + ".");
+			sendConversation(client, target(client, mob), msg("Start a brief, natural conversation with %s.",
+					client.player.getName().getString()));
 		} catch (Exception exception) {
-			say(client, ChatFormatting.RED, "Spontaneous conversation failed: " + exception.getMessage());
+			say(client, ChatFormatting.RED, msg("Spontaneous conversation failed: %s", exception.getMessage()));
 		}
 	}
 
@@ -168,7 +212,7 @@ public class MineYappingClient implements ClientModInitializer {
 		LivingEntity target = findTarget(client);
 		if (target == null) {
 			say(client, ChatFormatting.YELLOW,
-					"Look at a mob or move within " + (int) LISTEN_RADIUS + " blocks.");
+					msg("Look at a mob or move within %d blocks.", (int) LISTEN_RADIUS));
 			return;
 		}
 
@@ -177,13 +221,13 @@ public class MineYappingClient implements ClientModInitializer {
 			talkingEntity = target;
 			voiceConversation = new VoiceConversation(client, talkingTo);
 			recording = VoiceRecording.start(voiceConversation::sendAudio);
-			say(client, ChatFormatting.AQUA, "Listening to " + talkingTo.entityName() + "...");
+			say(client, ChatFormatting.AQUA, msg("Listening to %s...", talkingTo.entityName()));
 		} catch (Exception exception) {
 			if (voiceConversation != null) voiceConversation.cancel();
 			voiceConversation = null;
 			talkingTo = null;
 			talkingEntity = null;
-			say(client, ChatFormatting.RED, "Microphone unavailable: " + exception.getMessage());
+			say(client, ChatFormatting.RED, msg("Microphone unavailable: %s", exception.getMessage()));
 		}
 	}
 
@@ -201,15 +245,15 @@ public class MineYappingClient implements ClientModInitializer {
 			int audioBytes = finished.stop();
 			if (audioBytes < 1_000) {
 				conversation.cancel();
-				say(client, ChatFormatting.YELLOW, "Hold V a little longer so I can hear you.");
+				say(client, ChatFormatting.YELLOW, msg("Hold V a little longer so I can hear you."));
 				return;
 			}
 			acknowledge(client, entity);
-			say(client, ChatFormatting.GRAY, "Thinking...");
+			say(client, ChatFormatting.GRAY, msg("Thinking..."));
 			conversation.commit();
 		} catch (Exception exception) {
 			conversation.cancel();
-			say(client, ChatFormatting.RED, "Recording failed: " + exception.getMessage());
+			say(client, ChatFormatting.RED, msg("Recording failed: %s", exception.getMessage()));
 		}
 	}
 
@@ -242,7 +286,7 @@ public class MineYappingClient implements ClientModInitializer {
 
 	private void sendConversation(Minecraft client, MobTarget target, String text) throws Exception {
 		if (apiKey.isBlank()) {
-			throw new IllegalStateException("Run /login <token> with your dashboard API key");
+			throw new IllegalStateException(msg("Run /login <token> with your dashboard API key"));
 		}
 		String boundary = "MineYapping-" + System.nanoTime();
 		HttpRequest request = HttpRequest.newBuilder(conversationEndpoint)
@@ -264,11 +308,13 @@ public class MineYappingClient implements ClientModInitializer {
 				return new ModConfig("", DEFAULT_SERVER_URL, DEFAULT_SPEECH_CHANCE);
 			}
 			ModConfig config = GSON.fromJson(Files.readString(path), ModConfig.class);
+			String serverUrl = config == null || config.serverUrl() == null || config.serverUrl().isBlank()
+					? DEFAULT_SERVER_URL
+					: config.serverUrl().trim();
+			if (serverUrl.equals("https://yapping.arvoitus.com/api/converse")) serverUrl = DEFAULT_SERVER_URL;
 			return new ModConfig(
 					config == null || config.apiKey() == null ? "" : config.apiKey().trim(),
-					config == null || config.serverUrl() == null || config.serverUrl().isBlank()
-							? DEFAULT_SERVER_URL
-							: config.serverUrl().trim(),
+					serverUrl,
 					config == null || config.speechChance() == null || !Double.isFinite(config.speechChance())
 							? DEFAULT_SPEECH_CHANCE
 							: Math.max(0.0, Math.min(1.0, config.speechChance())));
@@ -292,6 +338,26 @@ public class MineYappingClient implements ClientModInitializer {
 				.GET()
 				.build();
 		HTTP.sendAsync(request, HttpResponse.BodyHandlers.discarding()).exceptionally(ignored -> null);
+		if (System.currentTimeMillis() - languageCheckedAt > LANGUAGE_REFRESH_MS) refreshLanguage();
+	}
+
+	/** Picks up a language switch made in the dashboard without a game restart. */
+	private void refreshLanguage() {
+		if (apiKey.isBlank()) return;
+		languageCheckedAt = System.currentTimeMillis();
+		HttpRequest request = HttpRequest.newBuilder(conversationEndpoint.resolve("/api/me/language"))
+				.timeout(Duration.ofSeconds(5))
+				.header("x-api-key", apiKey)
+				.GET()
+				.build();
+		HTTP.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+				.thenAccept(response -> {
+					if (response.statusCode() != 200) return;
+					LanguageResponse parsed = GSON.fromJson(response.body(), LanguageResponse.class);
+					if (parsed != null && "en".equals(parsed.language())) locale = "en";
+					else if (parsed != null && "fi".equals(parsed.language())) locale = "fi";
+				})
+				.exceptionally(ignored -> null);
 	}
 
 	private void acknowledge(Minecraft client, LivingEntity entity) {
@@ -312,7 +378,7 @@ public class MineYappingClient implements ClientModInitializer {
 			if (failure != null) throw new IllegalStateException(failure.getMessage(), failure);
 			if (response.statusCode() != 200) {
 				String body = new String(response.body().readAllBytes(), StandardCharsets.UTF_8);
-				throw new IllegalStateException("Conversation failed (" + response.statusCode() + "): " + body);
+				throw new IllegalStateException(msg("Conversation failed (%d): %s", response.statusCode(), body));
 			}
 			String transcript = decodeHeader(response, "X-MineYapping-Transcript");
 			String reply = decodeHeader(response, "X-MineYapping-Reply");
@@ -323,7 +389,8 @@ public class MineYappingClient implements ClientModInitializer {
 			});
 			handedOff = true;
 		} catch (Exception exception) {
-			client.execute(() -> say(client, ChatFormatting.RED, "Conversation failed: " + exception.getMessage()));
+			client.execute(() -> say(
+					client, ChatFormatting.RED, msg("Conversation failed: %s", exception.getMessage())));
 		} finally {
 			if (!handedOff && response != null) {
 				try {
@@ -336,7 +403,7 @@ public class MineYappingClient implements ClientModInitializer {
 
 	private static String decodeHeader(HttpResponse<?> response, String name) {
 		String value = response.headers().firstValue(name)
-				.orElseThrow(() -> new IllegalStateException("Server response is missing " + name));
+				.orElseThrow(() -> new IllegalStateException(msg("Server response is missing %s", name)));
 		return new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8);
 	}
 
@@ -348,8 +415,8 @@ public class MineYappingClient implements ClientModInitializer {
 					player.write(chunk, read);
 				}
 			} catch (Exception exception) {
-				Minecraft.getInstance().execute(() -> say(
-						Minecraft.getInstance(), ChatFormatting.RED, "Speech playback failed: " + exception.getMessage()));
+				Minecraft.getInstance().execute(() -> say(Minecraft.getInstance(), ChatFormatting.RED,
+						msg("Speech playback failed: %s", exception.getMessage())));
 			}
 		});
 	}
@@ -426,6 +493,8 @@ public class MineYappingClient implements ClientModInitializer {
 
 	private record ModConfig(String apiKey, String serverUrl, Double speechChance) {}
 
+	private record LanguageResponse(String language) {}
+
 	private record StreamEvent(String type, String value) {}
 
 	private record PlaybackGains(double left, double right) {}
@@ -461,7 +530,7 @@ public class MineYappingClient implements ClientModInitializer {
 						} catch (Exception ignored) {
 						}
 					});
-					say(client, ChatFormatting.RED, "Conversation failed: " + failure.getMessage());
+					say(client, ChatFormatting.RED, msg("Conversation failed: %s", failure.getMessage()));
 				});
 			});
 		}
@@ -484,7 +553,8 @@ public class MineYappingClient implements ClientModInitializer {
 					client.execute(() -> say(client, ChatFormatting.GOLD,
 							target.entityName() + ": " + event.value()));
 				} else if ("error".equals(type)) {
-					client.execute(() -> say(client, ChatFormatting.RED, "Conversation failed: " + event.value()));
+					client.execute(() -> say(
+							client, ChatFormatting.RED, msg("Conversation failed: %s", event.value())));
 				} else if ("done".equals(type)) {
 					closePlayer();
 				}
@@ -518,7 +588,7 @@ public class MineYappingClient implements ClientModInitializer {
 			webSocket.abort();
 			closePlayer();
 			client.execute(() -> say(client, ChatFormatting.RED,
-					"Conversation failed: " + error.getMessage()));
+					msg("Conversation failed: %s", error.getMessage())));
 		}
 
 		synchronized void sendAudio(byte[] audio) {
@@ -554,7 +624,7 @@ public class MineYappingClient implements ClientModInitializer {
 			this.gains = gains;
 			DataLine.Info info = new DataLine.Info(SourceDataLine.class, FORMAT);
 			if (!AudioSystem.isLineSupported(info))
-				throw new IllegalStateException("24 kHz stereo playback is not supported");
+				throw new IllegalStateException(msg("24 kHz stereo playback is not supported"));
 			line = (SourceDataLine) AudioSystem.getLine(info);
 			line.open(FORMAT, 4_800);
 			line.start();
@@ -616,7 +686,7 @@ public class MineYappingClient implements ClientModInitializer {
 
 		static VoiceRecording start(Consumer<byte[]> sink) throws Exception {
 			DataLine.Info info = new DataLine.Info(TargetDataLine.class, FORMAT);
-			if (!AudioSystem.isLineSupported(info)) throw new IllegalStateException("24 kHz microphone not supported");
+			if (!AudioSystem.isLineSupported(info)) throw new IllegalStateException(msg("24 kHz microphone not supported"));
 			TargetDataLine line = (TargetDataLine) AudioSystem.getLine(info);
 			line.open(FORMAT);
 			line.start();

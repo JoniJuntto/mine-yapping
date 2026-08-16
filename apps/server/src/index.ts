@@ -8,7 +8,7 @@ import { converse } from "./conversation";
 import { promptsApi } from "./prompts";
 import { getProviderKeys } from "./provider-key";
 import { RealtimeConversation } from "./realtime";
-import { quotaKey } from "./rules";
+import { language, quotaKey } from "./rules";
 import { finalizeUsage, reserveUsage } from "./usage";
 
 const realtimeSessions = new Map<
@@ -97,6 +97,7 @@ new Elysia()
 					byokKeys?.openAi ?? env.OPENAI_API_KEY,
 					byokKeys?.elevenLabs ?? env.ELEVENLABS_API_KEY,
 					identity.user.id,
+					language(identity.user.language),
 				);
 				set.headers["Content-Type"] = "audio/pcm";
 				set.headers["X-MineYapping-Transcript"] = Buffer.from(

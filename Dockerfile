@@ -11,12 +11,9 @@ COPY packages/db/package.json ./packages/db/
 COPY packages/env/package.json ./packages/env/
 COPY packages/config/package.json ./packages/config/
 
-# The docs site is not deployed here, but the lockfile describes it, so its
-# manifest must be present for --frozen-lockfile. --filter then skips actually
-# installing its React/Vite tree.
 COPY apps/fumadocs/package.json ./apps/fumadocs/
 
-RUN bun install --frozen-lockfile --filter server --filter admin --filter '@mine-yapping/*'
+RUN bun install --frozen-lockfile
 
 COPY packages ./packages
 COPY apps/server ./apps/server
@@ -40,3 +37,14 @@ COPY --from=web-build /app/apps/admin/.output ./apps/admin/.output
 ENV NODE_ENV=production PORT=4001
 EXPOSE 4001
 CMD ["bun", "apps/admin/.output/server/index.mjs"]
+
+FROM base AS docs-build
+COPY apps/fumadocs ./apps/fumadocs
+RUN bun run --cwd apps/fumadocs build
+
+FROM node:24-slim AS docs
+WORKDIR /app
+COPY --from=docs-build /app/apps/fumadocs/.output ./apps/fumadocs/.output
+ENV NODE_ENV=production PORT=4002
+EXPOSE 4002
+CMD ["node", "apps/fumadocs/.output/server/index.mjs"]

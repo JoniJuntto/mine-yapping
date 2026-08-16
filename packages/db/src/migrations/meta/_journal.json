@@ -71,6 +71,13 @@
       "when": 1786782811164,
       "tag": "0009_parched_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786810645372,
+      "tag": "0010_sharp_killer_shrike",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,6 @@
 import { mobPersona, mobPrompt } from "@mine-yapping/db/schema/prompts";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { type Language, languageName } from "./rules";
 
 type Turn = { player: string; mob: string };
 
@@ -273,6 +274,7 @@ async function generateReply(
 	persona: Persona,
 	openAiApiKey: string,
 	userId: string,
+	language: Language,
 	onSentence?: (sentence: string) => void | Promise<void>,
 ) {
 	const historyKey = `${userId}:${context.entityId}`;
@@ -283,7 +285,8 @@ async function generateReply(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
 			model: "gpt-5.6-luna",
-			instructions: `${renderPrompt(persona.prompt, context)}\nReply in at most two short sentences. Return only the spoken reply, with no label or formatting.`,
+			// Personalities stay English because they are instructions, not output.
+			instructions: `${renderPrompt(persona.prompt, context)}\nAlways reply in ${languageName(language)}, whatever language the player speaks in. Reply in at most two short sentences. Return only the spoken reply, with no label or formatting.`,
 			input: [
 				...history.flatMap((turn) => [
 					{ role: "user", content: turn.player },
@@ -365,6 +368,7 @@ class LiveSpeech {
 	constructor(
 		voiceId: string,
 		apiKey: string,
+		language: Language,
 		private readonly onAudio: (audio: Uint8Array) => void,
 	) {
 		this.opened = new Promise((resolve, reject) => {
@@ -387,6 +391,8 @@ class LiveSpeech {
 		url.searchParams.set("model_id", "eleven_flash_v2_5");
 		url.searchParams.set("output_format", "pcm_24000");
 		url.searchParams.set("auto_mode", "true");
+		// Without this Flash reads Finnish text with English phonetics.
+		url.searchParams.set("language_code", language);
 		this.socket = new WebSocket(url);
 		this.socket.addEventListener("open", () => {
 			clearTimeout(this.openTimeout);
@@ -478,12 +484,18 @@ export async function converseRealtime(
 	openAiApiKey: string,
 	elevenLabsApiKey: string,
 	userId: string,
+	language: Language,
 	personaPromise: Promise<Persona>,
 	onAudio: (audio: Uint8Array) => void,
 	onReply: (reply: string) => void,
 ) {
 	const persona = await personaPromise;
-	const speech = new LiveSpeech(persona.voiceId, elevenLabsApiKey, onAudio);
+	const speech = new LiveSpeech(
+		persona.voiceId,
+		elevenLabsApiKey,
+		language,
+		onAudio,
+	);
 	try {
 		const generated = await generateReply(
 			transcript,
@@ -491,6 +503,7 @@ export async function converseRealtime(
 			persona,
 			openAiApiKey,
 			userId,
+			language,
 			(sentence) => {
 				onReply(sentence);
 				return speech.send(sentence);
@@ -559,10 +572,11 @@ export async function converse(
 	openAiApiKey: string,
 	elevenLabsApiKey: string,
 	userId: string,
+	language: Language,
 ): Promise<MobReply> {
 	const sttStartedAt = Date.now();
 	const [transcription, persona] = await Promise.all([
-		transcribe(input, openAiApiKey).then((transcript) => ({
+		transcribe(input, openAiApiKey, language).then((transcript) => ({
 			transcript,
 			sttMs: Date.now() - sttStartedAt,
 		})),
@@ -576,6 +590,7 @@ export async function converse(
 		persona,
 		openAiApiKey,
 		userId,
+		language,
 	);
 	const ttsStartedAt = Date.now();
 	const speech = await elevenLabs(
@@ -587,6 +602,7 @@ export async function converse(
 			body: JSON.stringify({
 				text: generated.reply,
 				model_id: "eleven_flash_v2_5",
+				language_code: language,
 			}),
 		},
 	);
@@ -605,11 +621,16 @@ export async function converse(
 	};
 }
 
-export async function transcribe(input: File | string, apiKey: string) {
+export async function transcribe(
+	input: File | string,
+	apiKey: string,
+	language: Language,
+) {
 	if (typeof input === "string") return input.trim();
 	const form = new FormData();
 	form.append("file", input, "speech.wav");
 	form.append("model", "gpt-4o-mini-transcribe");
+	form.append("language", language);
 	const transcription = (await (
 		await openAI("/audio/transcriptions", apiKey, {
 			method: "POST",

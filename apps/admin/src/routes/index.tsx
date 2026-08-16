@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { LegalFooter } from "../components/app-shell";
 import { DonationForm } from "../components/donation-form";
 import { api } from "../lib/api";
-import { getLocale, translate } from "../lib/i18n";
+import { getLocale, localeSearch, translate } from "../lib/i18n";
 import { MOD_DOWNLOAD_URL } from "../lib/mod-download";
 
 type Donor = { nickname: string; amount: number; currency: string };
@@ -31,10 +31,18 @@ function Landing() {
 						<a href={MOD_DOWNLOAD_URL} className="button-secondary">
 							{t("Download mod")}
 						</a>
-						<Link to="/login" search={true} className="button-secondary">
+						<Link
+							to="/login"
+							search={localeSearch(locale)}
+							className="button-secondary"
+						>
 							{t("Sign in")}
 						</Link>
-						<Link to="/signup" search={true} className="button-primary">
+						<Link
+							to="/signup"
+							search={localeSearch(locale)}
+							className="button-primary"
+						>
 							{t("Get started")}
 						</Link>
 					</div>
@@ -56,7 +64,7 @@ function Landing() {
 							</a>
 							<Link
 								to="/signup"
-								search={true}
+								search={localeSearch(locale)}
 								className="button-secondary px-6 py-3"
 							>
 								{t("Create free account")}
@@ -128,16 +136,6 @@ function Landing() {
 									"The mod and all its features are free. Twitch sign-in includes 1.5× the standard monthly usage.",
 								)}
 							</p>
-							<p className="font-semibold">
-								{estimatedCostUsd === null
-									? t("Shared API spend is temporarily unavailable.")
-									: `${new Intl.NumberFormat(locale, {
-											style: "currency",
-											currency: "USD",
-										}).format(
-											estimatedCostUsd,
-										)} estimated shared API spend this month.`}
-							</p>
 						</article>
 						<article className="card border-accent/40">
 							<h3 className="text-2xl">{t("Support it")}</h3>
@@ -149,6 +147,26 @@ function Landing() {
 							<DonationForm />
 						</article>
 					</div>
+					<article className="card mt-5 border-accent/40 text-left">
+						<h3 className="text-2xl">
+							{t("Keeping this online costs real money")}
+						</h3>
+						<p className="font-black text-3xl">
+							{estimatedCostUsd === null
+								? "—"
+								: new Intl.NumberFormat(locale, {
+										style: "currency",
+										currency: "EUR",
+									}).format(estimatedCostUsd)}
+						</p>
+						<p className="text-ink/65">
+							{estimatedCostUsd === null
+								? t("Shared API spend is temporarily unavailable.")
+								: t(
+										"That’s what I’ve spent on shared API costs this month so nobody has to pay to play. If you can, please consider donating.",
+									)}
+						</p>
+					</article>
 				</section>
 				<section className="border-black/10 border-t bg-panel">
 					<div className="mx-auto max-w-4xl px-5 py-16">

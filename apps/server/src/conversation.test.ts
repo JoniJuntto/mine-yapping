@@ -17,7 +17,7 @@ describe("shiftCompleteSentence", () => {
 });
 
 test("typed chat bypasses speech transcription", async () => {
-	expect(await transcribe("  hello cow  ", "unused")).toBe("hello cow");
+	expect(await transcribe("  hello cow  ", "unused", "fi")).toBe("hello cow");
 });
 
 test("a known entity keeps its prompt and voice", () => {

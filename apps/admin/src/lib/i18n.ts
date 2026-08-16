@@ -1,19 +1,28 @@
 import { useSearch } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 export type Locale = "en" | "fi";
 
+const LOCALE_KEY = "mine-yapping.locale";
+
+/** Finnish is the default everywhere; English is opt-in via `?lang=en`. */
 export function getLocale(search: unknown): Locale {
 	if (search instanceof URLSearchParams)
-		return search.get("lang") === "fi" ? "fi" : "en";
+		return search.get("lang") === "en" ? "en" : "fi";
 	if (typeof search === "string")
-		return new URLSearchParams(search).get("lang") === "fi" ? "fi" : "en";
-	return (search as { lang?: unknown } | undefined)?.lang === "fi"
-		? "fi"
-		: "en";
+		return new URLSearchParams(search).get("lang") === "en" ? "en" : "fi";
+	return (search as { lang?: unknown } | undefined)?.lang === "en"
+		? "en"
+		: "fi";
+}
+
+/** Root search only stores English; Finnish omits `lang`. */
+export function localeSearch(locale: Locale): { lang?: "en" } {
+	return locale === "en" ? { lang: "en" } : {};
 }
 
 export function localizedUrl(path: string, locale: Locale) {
-	if (locale === "en") return path;
+	if (locale === "fi") return path;
 	const url = new URL(path, "https://local.invalid");
 	url.searchParams.set("lang", locale);
 	return `${url.pathname}${url.search}${url.hash}`;
@@ -23,10 +32,36 @@ export function alternateLinks(pathname: string) {
 	const url = `https://mine-yapper.com${pathname}`;
 	return [
 		{ rel: "canonical", href: url },
-		{ rel: "alternate", hreflang: "en", href: url },
-		{ rel: "alternate", hreflang: "fi", href: `${url}?lang=fi` },
+		{ rel: "alternate", hreflang: "fi", href: url },
+		{ rel: "alternate", hreflang: "en", href: `${url}?lang=en` },
 		{ rel: "alternate", hreflang: "x-default", href: url },
 	];
+}
+
+// ponytail: localStorage carries the choice across visits without an SSR cookie
+// read. The URL stays authoritative during render, so hydration cannot mismatch.
+export function storedLocale(): Locale | undefined {
+	if (typeof localStorage === "undefined") return undefined;
+	const value = localStorage.getItem(LOCALE_KEY);
+	return value === "en" || value === "fi" ? value : undefined;
+}
+
+export function rememberLocale(locale: Locale) {
+	if (typeof localStorage !== "undefined")
+		localStorage.setItem(LOCALE_KEY, locale);
+}
+
+/**
+ * Re-applies a saved English preference when the visitor lands on a bare URL.
+ * Runs after hydration, so it navigates rather than changing what was rendered.
+ */
+export function useRestoreLocale(locale: Locale) {
+	useEffect(() => {
+		if (locale !== "fi" || storedLocale() !== "en") return;
+		const url = new URL(window.location.href);
+		url.searchParams.set("lang", "en");
+		window.location.replace(url);
+	}, [locale]);
 }
 
 const fi: Record<string, string> = {
@@ -67,6 +102,10 @@ const fi: Record<string, string> = {
 		"Modi ja kaikki sen ominaisuudet ovat ilmaisia. Twitch-kirjautuminen sisältää 1,5-kertaisen kuukausikäytön.",
 	"Shared API spend is temporarily unavailable.":
 		"Yhteisten API-kulujen tietoa ei juuri nyt ole saatavilla.",
+	"Keeping this online costs real money":
+		"Palvelun ylläpito maksaa oikeaa rahaa",
+	"That’s what I’ve spent on shared API costs this month so nobody has to pay to play. If you can, please consider donating.":
+		"Sen verran olen käyttänyt yhteisiin API-kuluihin tässä kuussa, jotta kenenkään ei tarvitse maksaa pelaamisesta. Jos pystyt, harkitse lahjoittamista.",
 	"Support it": "Tue",
 	"Donations are optional and never unlock features or increase usage.":
 		"Lahjoitukset ovat vapaaehtoisia eivätkä avaa ominaisuuksia tai lisää käyttöä.",
@@ -157,6 +196,21 @@ const fi: Record<string, string> = {
 	Cancel: "Peruuta",
 	"NOT AN OFFICIAL MINECRAFT SERVICE. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.":
 		"EI VIRALLINEN MINECRAFT-PALVELU. MOJANG TAI MICROSOFT EI OLE HYVÄKSYNYT PALVELUA EIKÄ SE LIITY NIIHIN.",
+	"Sign in failed": "Kirjautuminen epäonnistui",
+	"Sign up failed": "Rekisteröityminen epäonnistui",
+	"Twitch sign in failed": "Twitch-kirjautuminen epäonnistui",
+	"Password reset failed": "Salasanan palautus epäonnistui",
+	"Could not send reset email":
+		"Palautussähköpostin lähettäminen ei onnistunut",
+	"Could not resend email": "Sähköpostin lähettäminen uudelleen ei onnistunut",
+	"Could not start donation checkout": "Lahjoituksen aloittaminen ei onnistunut",
+	"If that account exists, a reset link is on its way.":
+		"Jos tili on olemassa, palautuslinkki on matkalla.",
+	"Provider keys saved.": "Palveluntarjoaja-avaimet tallennettu.",
+	"Using the free tier.": "Käytössä on ilmainen taso.",
+	"Resend verification email": "Lähetä vahvistussähköposti uudelleen",
+	"Mob replies, speech recognition, and this site.":
+		"Hahmojen vastaukset, puheentunnistus ja tämä sivusto.",
 };
 
 export function translate(locale: Locale, text: string) {

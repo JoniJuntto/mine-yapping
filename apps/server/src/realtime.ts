@@ -6,7 +6,7 @@ import {
 	personaForConversation,
 } from "./conversation";
 import { getProviderKeys } from "./provider-key";
-import { quotaKey } from "./rules";
+import { type Language, language as resolveLanguage, quotaKey } from "./rules";
 import { finalizeUsage, reserveUsage } from "./usage";
 
 type ClientSocket = {
@@ -32,6 +32,7 @@ export class RealtimeConversation {
 		private readonly reservationId: string,
 		private readonly openAiApiKey: string,
 		private readonly elevenLabsApiKey: string,
+		private readonly language: Language,
 		private readonly persona: ReturnType<typeof personaForConversation>,
 	) {
 		transcriber.addEventListener("message", ({ data }) =>
@@ -68,6 +69,7 @@ export class RealtimeConversation {
 		if (!reservationId) throw new Error("Monthly free usage limit reached");
 		const openAiApiKey = keys?.openAi ?? env.OPENAI_API_KEY;
 		const elevenLabsApiKey = keys?.elevenLabs ?? env.ELEVENLABS_API_KEY;
+		const language = resolveLanguage(identity.user.language);
 		const persona = personaForConversation(
 			context,
 			elevenLabsApiKey,
@@ -76,8 +78,10 @@ export class RealtimeConversation {
 		void persona.catch(() => undefined);
 
 		try {
-			const transcriber =
-				await RealtimeConversation.openTranscriber(openAiApiKey);
+			const transcriber = await RealtimeConversation.openTranscriber(
+				openAiApiKey,
+				language,
+			);
 			const conversation = new RealtimeConversation(
 				client,
 				transcriber,
@@ -86,6 +90,7 @@ export class RealtimeConversation {
 				reservationId,
 				openAiApiKey,
 				elevenLabsApiKey,
+				language,
 				persona,
 			);
 			client.send(message("ready"));
@@ -96,7 +101,7 @@ export class RealtimeConversation {
 		}
 	}
 
-	private static openTranscriber(apiKey: string) {
+	private static openTranscriber(apiKey: string, language: Language) {
 		return new Promise<WebSocket>((resolve, reject) => {
 			const socket = new WebSocket(
 				"wss://api.openai.com/v1/realtime?model=gpt-realtime-2.1",
@@ -118,6 +123,8 @@ export class RealtimeConversation {
 									format: { type: "audio/pcm", rate: 24_000 },
 									transcription: {
 										model: "gpt-live-transcribe",
+										// Left to auto-detect, Finnish speech comes back as garbled English.
+										language,
 										delay: "low",
 									},
 									turn_detection: null,
@@ -215,6 +222,7 @@ export class RealtimeConversation {
 				this.openAiApiKey,
 				this.elevenLabsApiKey,
 				this.userId,
+				this.language,
 				this.persona,
 				(audio) => this.client.send(audio),
 				(reply) => this.client.send(message("reply", reply)),
