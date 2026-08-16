@@ -220,14 +220,22 @@ export async function personaFor(
 	}
 }
 
-export const shiftCompleteSentence = (text: string) => {
-	const match = text.match(/^([\s\S]*?[.!?]+(?:["')\]]+)?)(?=\s|$)/);
-	return match
-		? {
-				sentence: match[1]?.trim() ?? "",
-				rest: text.slice(match[0].length).trimStart(),
-			}
-		: null;
+export const shiftSpeakableChunk = (text: string) => {
+	const match = text.match(
+		/^([\s\S]*?(?:[.!?,;:…]+(?:["')\]]+)?|[–—]))(?=\s|$)/,
+	);
+	if (match)
+		return {
+			chunk: match[1]?.trim() ?? "",
+			rest: text.slice(match[0].length).trimStart(),
+		};
+	if (text.length < 80) return null;
+	const space = text.lastIndexOf(" ", 80);
+	const end = space >= 40 ? space : 80;
+	return {
+		chunk: text.slice(0, end).trim(),
+		rest: text.slice(end).trimStart(),
+	};
 };
 
 type Persona = Awaited<ReturnType<typeof personaFor>>;
@@ -287,7 +295,7 @@ async function generateReply(
 	openAiApiKey: string,
 	userId: string,
 	language: Language,
-	onSentence?: (sentence: string) => void | Promise<void>,
+	onChunk?: (chunk: string) => void | Promise<void>,
 ) {
 	const historyKey = `${userId}:${context.entityId}`;
 	const history = histories.get(historyKey) ?? [];
@@ -323,11 +331,11 @@ async function generateReply(
 	let reply = "";
 	let pending = "";
 	let spoken = 0;
-	const speak = async (sentence: string) => {
-		const text = withinSpeechBudget(spoken, sentence);
+	const speak = async (chunk: string) => {
+		const text = withinSpeechBudget(spoken, chunk);
 		if (!text) return;
 		spoken += text.length;
-		await onSentence?.(text);
+		await onChunk?.(text);
 	};
 	let usage: ReplyUsage = { inputTokens: 0, outputTokens: 0 };
 	for await (const event of sseEvents(response.body)) {
@@ -335,11 +343,11 @@ async function generateReply(
 			const delta = typeof event.delta === "string" ? event.delta : "";
 			reply += delta;
 			pending += delta;
-			let complete = shiftCompleteSentence(pending);
+			let complete = shiftSpeakableChunk(pending);
 			while (complete) {
-				if (complete.sentence) await speak(complete.sentence);
+				if (complete.chunk) await speak(complete.chunk);
 				pending = complete.rest;
-				complete = shiftCompleteSentence(pending);
+				complete = shiftSpeakableChunk(pending);
 			}
 		} else if (event.type === "response.completed") {
 			const responseUsage = (
@@ -371,7 +379,7 @@ async function generateReply(
 	return { reply, usage, llmMs: Date.now() - startedAt };
 }
 
-class LiveSpeech {
+export class LiveSpeech {
 	private readonly socket: WebSocket;
 	private readonly opened: Promise<void>;
 	private readonly finished: Promise<number>;
@@ -411,6 +419,7 @@ class LiveSpeech {
 		url.searchParams.set("model_id", "eleven_flash_v2_5");
 		url.searchParams.set("output_format", "pcm_24000");
 		url.searchParams.set("auto_mode", "true");
+		url.searchParams.set("inactivity_timeout", "30");
 		// Without this Flash reads Finnish text with English phonetics.
 		url.searchParams.set("language_code", language);
 		this.socket = new WebSocket(url);
@@ -502,20 +511,13 @@ export async function converseRealtime(
 	transcript: string,
 	context: MobContext,
 	openAiApiKey: string,
-	elevenLabsApiKey: string,
 	userId: string,
 	language: Language,
 	personaPromise: Promise<Persona>,
-	onAudio: (audio: Uint8Array) => void,
+	speechPromise: Promise<LiveSpeech>,
 	onReply: (reply: string) => void,
 ) {
-	const persona = await personaPromise;
-	const speech = new LiveSpeech(
-		persona.voiceId,
-		elevenLabsApiKey,
-		language,
-		onAudio,
-	);
+	const [persona, speech] = await Promise.all([personaPromise, speechPromise]);
 	try {
 		const generated = await generateReply(
 			transcript,
@@ -524,11 +526,9 @@ export async function converseRealtime(
 			openAiApiKey,
 			userId,
 			language,
-			(sentence) => {
-				onReply(sentence);
-				return speech.send(sentence);
-			},
+			(chunk) => speech.send(chunk),
 		);
+		onReply(generated.reply);
 		const ttsMs = await speech.finish();
 		return {
 			usage: {

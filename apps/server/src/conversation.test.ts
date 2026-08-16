@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	choosePersona,
 	renderPrompt,
-	shiftCompleteSentence,
+	shiftSpeakableChunk,
 	transcribe,
 	withinSpeechBudget,
 } from "./conversation";
@@ -25,12 +25,24 @@ describe("withinSpeechBudget", () => {
 	});
 });
 
-describe("shiftCompleteSentence", () => {
-	test("holds partial text and emits one complete sentence", () => {
-		expect(shiftCompleteSentence("Still speaking")).toBeNull();
-		expect(shiftCompleteSentence('Hello there! "Next sentence')).toEqual({
-			sentence: "Hello there!",
-			rest: '"Next sentence',
+describe("shiftSpeakableChunk", () => {
+	test("holds short partial text and emits natural clauses", () => {
+		expect(shiftSpeakableChunk("Still speaking")).toBeNull();
+		expect(shiftSpeakableChunk('Hello there, "next clause')).toEqual({
+			chunk: "Hello there,",
+			rest: '"next clause',
+		});
+	});
+
+	test("caps a punctuation-free chunk at a nearby word boundary", () => {
+		const text = `${"a".repeat(39)} ${"b".repeat(40)} tail`;
+		expect(shiftSpeakableChunk(text)).toEqual({
+			chunk: `${"a".repeat(39)} ${"b".repeat(40)}`,
+			rest: "tail",
+		});
+		expect(shiftSpeakableChunk("x".repeat(80))).toEqual({
+			chunk: "x".repeat(80),
+			rest: "",
 		});
 	});
 });

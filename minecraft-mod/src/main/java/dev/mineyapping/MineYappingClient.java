@@ -3,8 +3,6 @@ package dev.mineyapping;
 import com.google.gson.Gson;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -17,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -81,9 +78,6 @@ public class MineYappingClient implements ClientModInitializer {
 			Map.entry("Recording failed: %s", "Äänitys epäonnistui: %s"),
 			Map.entry("Run /login <token> with your dashboard API key",
 					"Suorita /login <token> hallintapaneelin API-avaimellasi"),
-			Map.entry("Conversation failed (%d): %s", "Keskustelu epäonnistui (%d): %s"),
-			Map.entry("Server response is missing %s", "Palvelimen vastauksesta puuttuu %s"),
-			Map.entry("Speech playback failed: %s", "Puheen toisto epäonnistui: %s"),
 			Map.entry("24 kHz stereo playback is not supported", "24 kHz:n stereotoistoa ei tueta"),
 			Map.entry("24 kHz microphone not supported", "24 kHz:n mikrofonia ei tueta"),
 			Map.entry("%s just interacted with you. React naturally.",
@@ -208,7 +202,7 @@ public class MineYappingClient implements ClientModInitializer {
 
 	private void onTalkStart(Minecraft client) {
 		if (client.level == null || client.player == null || recording != null) return;
-		warmConnection();
+		refreshLanguageIfStale();
 		LivingEntity target = findTarget(client);
 		if (target == null) {
 			say(client, ChatFormatting.YELLOW,
@@ -219,7 +213,7 @@ public class MineYappingClient implements ClientModInitializer {
 		try {
 			talkingTo = target(client, target);
 			talkingEntity = target;
-			voiceConversation = new VoiceConversation(client, talkingTo);
+			voiceConversation = new VoiceConversation(client, talkingTo, null);
 			recording = VoiceRecording.start(voiceConversation::sendAudio);
 			say(client, ChatFormatting.AQUA, msg("Listening to %s...", talkingTo.entityName()));
 		} catch (Exception exception) {
@@ -288,15 +282,7 @@ public class MineYappingClient implements ClientModInitializer {
 		if (apiKey.isBlank()) {
 			throw new IllegalStateException(msg("Run /login <token> with your dashboard API key"));
 		}
-		String boundary = "MineYapping-" + System.nanoTime();
-		HttpRequest request = HttpRequest.newBuilder(conversationEndpoint)
-				.timeout(Duration.ofSeconds(45))
-				.header("x-api-key", apiKey)
-				.header("Content-Type", "multipart/form-data; boundary=" + boundary)
-				.POST(HttpRequest.BodyPublishers.ofByteArray(multipart(boundary, target, text)))
-				.build();
-		HTTP.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream()).whenComplete((response, failure) ->
-				Thread.ofVirtual().name("mineyapping-http").start(() -> handleResponse(client, target, response, failure)));
+		new VoiceConversation(client, target, text);
 	}
 
 	private ModConfig loadConfig() {
@@ -332,12 +318,7 @@ public class MineYappingClient implements ClientModInitializer {
 				StandardCharsets.UTF_8);
 	}
 
-	private void warmConnection() {
-		HttpRequest request = HttpRequest.newBuilder(conversationEndpoint.resolve("/"))
-				.timeout(Duration.ofSeconds(3))
-				.GET()
-				.build();
-		HTTP.sendAsync(request, HttpResponse.BodyHandlers.discarding()).exceptionally(ignored -> null);
+	private void refreshLanguageIfStale() {
 		if (System.currentTimeMillis() - languageCheckedAt > LANGUAGE_REFRESH_MS) refreshLanguage();
 	}
 
@@ -368,59 +349,6 @@ public class MineYappingClient implements ClientModInitializer {
 		}
 	}
 
-	private void handleResponse(
-			Minecraft client,
-			MobTarget target,
-			HttpResponse<InputStream> response,
-			Throwable failure) {
-		boolean handedOff = false;
-		try {
-			if (failure != null) throw new IllegalStateException(failure.getMessage(), failure);
-			if (response.statusCode() != 200) {
-				String body = new String(response.body().readAllBytes(), StandardCharsets.UTF_8);
-				throw new IllegalStateException(msg("Conversation failed (%d): %s", response.statusCode(), body));
-			}
-			String transcript = decodeHeader(response, "X-MineYapping-Transcript");
-			String reply = decodeHeader(response, "X-MineYapping-Reply");
-			client.execute(() -> {
-				say(client, ChatFormatting.DARK_GRAY, transcript);
-				say(client, ChatFormatting.GOLD, target.entityName() + ": " + reply);
-				play(response.body(), target);
-			});
-			handedOff = true;
-		} catch (Exception exception) {
-			client.execute(() -> say(
-					client, ChatFormatting.RED, msg("Conversation failed: %s", exception.getMessage())));
-		} finally {
-			if (!handedOff && response != null) {
-				try {
-					response.body().close();
-				} catch (Exception ignored) {
-				}
-			}
-		}
-	}
-
-	private static String decodeHeader(HttpResponse<?> response, String name) {
-		String value = response.headers().firstValue(name)
-				.orElseThrow(() -> new IllegalStateException(msg("Server response is missing %s", name)));
-		return new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8);
-	}
-
-	private void play(InputStream audio, MobTarget target) {
-		Thread.ofVirtual().name("mineyapping-tts").start(() -> {
-			try (audio; PcmPlayer player = new PcmPlayer(playbackGains(target))) {
-				byte[] chunk = new byte[4_096];
-				for (int read; (read = audio.read(chunk)) != -1; ) {
-					player.write(chunk, read);
-				}
-			} catch (Exception exception) {
-				Minecraft.getInstance().execute(() -> say(Minecraft.getInstance(), ChatFormatting.RED,
-						msg("Speech playback failed: %s", exception.getMessage())));
-			}
-		});
-	}
-
 	private PlaybackGains playbackGains(MobTarget target) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.player == null) return new PlaybackGains(1.0, 1.0);
@@ -438,7 +366,7 @@ public class MineYappingClient implements ClientModInitializer {
 				gain * (pan < 0.0 ? 1.0 + pan : 1.0));
 	}
 
-	private URI websocketEndpoint(MobTarget target) {
+	private URI websocketEndpoint(MobTarget target, boolean textInput) {
 		String endpoint = conversationEndpoint.toString().replaceFirst("^http", "ws");
 		if (endpoint.endsWith("/")) endpoint = endpoint.substring(0, endpoint.length() - 1);
 		String query = "entityId=" + encoded(target.entityId())
@@ -446,32 +374,13 @@ public class MineYappingClient implements ClientModInitializer {
 				+ "&entityName=" + encoded(target.entityName())
 				+ "&playerName=" + encoded(target.playerName())
 				+ "&dimension=" + encoded(target.dimension())
-				+ "&health=" + encoded(target.health());
+				+ "&health=" + encoded(target.health())
+				+ (textInput ? "&mode=text" : "");
 		return URI.create(endpoint + "/stream?" + query);
 	}
 
 	private static String encoded(String value) {
 		return URLEncoder.encode(value, StandardCharsets.UTF_8);
-	}
-
-	private static byte[] multipart(String boundary, MobTarget target, String text) throws Exception {
-		ByteArrayOutputStream body = new ByteArrayOutputStream();
-		field(body, boundary, "entityId", target.entityId());
-		field(body, boundary, "entityType", target.entityType());
-		field(body, boundary, "entityName", target.entityName());
-		field(body, boundary, "playerName", target.playerName());
-		field(body, boundary, "dimension", target.dimension());
-		field(body, boundary, "health", target.health());
-		field(body, boundary, "text", text);
-		body.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
-		return body.toByteArray();
-	}
-
-	private static void field(ByteArrayOutputStream body, String boundary, String name, String value)
-			throws Exception {
-		body.write(("--" + boundary + "\r\n"
-				+ "Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n"
-				+ value + "\r\n").getBytes(StandardCharsets.UTF_8));
 	}
 
 	private void say(Minecraft client, ChatFormatting color, String message) {
@@ -502,34 +411,38 @@ public class MineYappingClient implements ClientModInitializer {
 	private final class VoiceConversation implements WebSocket.Listener {
 		private final Minecraft client;
 		private final MobTarget target;
+		private final String inputText;
 		private final CompletableFuture<WebSocket> socket;
 		private final StringBuilder textMessage = new StringBuilder();
 		private CompletableFuture<?> sends;
 		private PcmPlayer player;
 
-		private VoiceConversation(Minecraft client, MobTarget target) {
+		private VoiceConversation(Minecraft client, MobTarget target, String text) {
 			this.client = client;
 			this.target = target;
+			this.inputText = text;
 			this.socket = HTTP.newWebSocketBuilder()
 					.connectTimeout(Duration.ofSeconds(5))
 					.header("x-api-key", apiKey)
-					.buildAsync(websocketEndpoint(target), this);
+					.buildAsync(websocketEndpoint(target, text != null), this);
 			this.sends = socket;
 			this.socket.whenComplete((webSocket, failure) -> {
 				if (failure == null) return;
 				client.execute(() -> {
-					if (voiceConversation != this) return;
-					VoiceRecording failedRecording = recording;
-					recording = null;
-					talkingTo = null;
-					talkingEntity = null;
-					voiceConversation = null;
-					if (failedRecording != null) Thread.ofVirtual().start(() -> {
-						try {
-							failedRecording.stop();
-						} catch (Exception ignored) {
-						}
-					});
+					if (inputText == null) {
+						if (voiceConversation != this) return;
+						VoiceRecording failedRecording = recording;
+						recording = null;
+						talkingTo = null;
+						talkingEntity = null;
+						voiceConversation = null;
+						if (failedRecording != null) Thread.ofVirtual().start(() -> {
+							try {
+								failedRecording.stop();
+							} catch (Exception ignored) {
+							}
+						});
+					}
 					say(client, ChatFormatting.RED, msg("Conversation failed: %s", failure.getMessage()));
 				});
 			});
@@ -547,7 +460,14 @@ public class MineYappingClient implements ClientModInitializer {
 				StreamEvent event = GSON.fromJson(textMessage.toString(), StreamEvent.class);
 				textMessage.setLength(0);
 				String type = event == null ? null : event.type();
-				if ("transcript".equals(type)) {
+				if ("ready".equals(type)) {
+					try {
+						if (player == null) player = new PcmPlayer(playbackGains(target));
+						if (inputText != null) webSocket.sendText("text:" + inputText, true);
+					} catch (Exception exception) {
+						onError(webSocket, exception);
+					}
+				} else if ("transcript".equals(type)) {
 					client.execute(() -> say(client, ChatFormatting.DARK_GRAY, event.value()));
 				} else if ("reply".equals(type)) {
 					client.execute(() -> say(client, ChatFormatting.GOLD,

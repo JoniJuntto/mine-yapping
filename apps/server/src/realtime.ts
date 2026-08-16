@@ -2,6 +2,7 @@ import { env } from "@mine-yapping/env/server";
 import { getApiKeyUser } from "./access";
 import {
 	converseRealtime,
+	LiveSpeech,
 	type MobContext,
 	personaForConversation,
 } from "./conversation";
@@ -32,22 +33,22 @@ export class RealtimeConversation {
 
 	private constructor(
 		private readonly client: ClientSocket,
-		private readonly transcriber: WebSocket,
+		private readonly transcriber: WebSocket | undefined,
 		private readonly context: MobContext,
 		private readonly userId: string,
 		private readonly reservationId: string,
 		private readonly openAiApiKey: string,
-		private readonly elevenLabsApiKey: string,
 		private readonly language: Language,
 		private readonly persona: ReturnType<typeof personaForConversation>,
+		private readonly speech: Promise<LiveSpeech>,
 	) {
-		transcriber.addEventListener("message", ({ data }) =>
+		transcriber?.addEventListener("message", ({ data }) =>
 			this.onTranscriptionMessage(String(data)),
 		);
-		transcriber.addEventListener("error", () =>
+		transcriber?.addEventListener("error", () =>
 			this.fail(new Error("OpenAI transcription WebSocket failed")),
 		);
-		transcriber.addEventListener("close", ({ code }) => {
+		transcriber?.addEventListener("close", ({ code }) => {
 			if (!this.responding && code !== 1000)
 				this.fail(new Error(`OpenAI transcription closed (${code})`));
 		});
@@ -57,6 +58,7 @@ export class RealtimeConversation {
 		client: ClientSocket,
 		request: Request,
 		context: MobContext,
+		textInput = false,
 	) {
 		const identity = await getApiKeyUser(request);
 		if ("error" in identity) throw new Error(identity.error);
@@ -64,7 +66,7 @@ export class RealtimeConversation {
 		const billingMode = keys ? "byok" : "free";
 		const reservationId = await reserveUsage(
 			identity.user.id,
-			"audio",
+			textInput ? "text" : "audio",
 			billingMode,
 			quotaKey(
 				request.headers.get("x-forwarded-for"),
@@ -85,12 +87,18 @@ export class RealtimeConversation {
 			identity.user.id,
 		);
 		void persona.catch(() => undefined);
+		const speech = persona.then(
+			(persona) =>
+				new LiveSpeech(persona.voiceId, elevenLabsApiKey, language, (audio) =>
+					client.send(audio),
+				),
+		);
+		void speech.catch(() => undefined);
 
 		try {
-			const transcriber = await RealtimeConversation.openTranscriber(
-				openAiApiKey,
-				language,
-			);
+			const transcriber = textInput
+				? undefined
+				: await RealtimeConversation.openTranscriber(openAiApiKey, language);
 			const conversation = new RealtimeConversation(
 				client,
 				transcriber,
@@ -98,13 +106,14 @@ export class RealtimeConversation {
 				identity.user.id,
 				reservationId,
 				openAiApiKey,
-				elevenLabsApiKey,
 				language,
 				persona,
+				speech,
 			);
 			client.send(message("ready"));
 			return conversation;
 		} catch (cause) {
+			void speech.then((speech) => speech.cancel()).catch(() => undefined);
 			await finalizeUsage(reservationId, { successful: false });
 			throw cause;
 		}
@@ -159,12 +168,14 @@ export class RealtimeConversation {
 	}
 
 	sendAudio(audio: Uint8Array) {
-		if (this.responding) return;
+		if (this.responding || !this.transcriber) return;
 		this.bytesReceived += audio.byteLength;
 		// Same ceiling as the HTTP path: one credit must not buy minutes of
 		// transcription. bytesReceived/48 is the ms conversion used in respond().
 		if (this.bytesReceived > MAX_AUDIO_BYTES) {
-			this.fail(new Error(`Audio must be under ${MAX_AUDIO_MS / 1000} seconds`));
+			this.fail(
+				new Error(`Audio must be under ${MAX_AUDIO_MS / 1000} seconds`),
+			);
 			return;
 		}
 		this.transcriber.send(
@@ -176,7 +187,7 @@ export class RealtimeConversation {
 	}
 
 	commit() {
-		if (this.responding || this.committedAt) return;
+		if (this.responding || this.committedAt || !this.transcriber) return;
 		if (this.bytesReceived < 1_000) {
 			this.fail(new Error("Hold V a little longer so I can hear you"));
 			return;
@@ -186,6 +197,17 @@ export class RealtimeConversation {
 		this.transcriber.send(
 			JSON.stringify({ type: "input_audio_buffer.commit" }),
 		);
+	}
+
+	sendText(text: string) {
+		const transcript = text.trim();
+		if (this.transcriber || this.responding || this.committedAt) return;
+		if (!transcript || transcript.length > 500) {
+			this.fail(new Error("Text must be between 1 and 500 characters"));
+			return;
+		}
+		this.committedAt = Date.now();
+		void this.respond(transcript);
 	}
 
 	private onTranscriptionMessage(data: string) {
@@ -222,7 +244,7 @@ export class RealtimeConversation {
 	private async respond(transcript: string) {
 		this.responding = true;
 		if (this.transcriptionTimeout) clearTimeout(this.transcriptionTimeout);
-		this.transcriber.close();
+		this.transcriber?.close();
 		const sttMs = Date.now() - (this.committedAt || Date.now());
 		const startedAt = this.committedAt || Date.now();
 		this.client.send(message("transcript", transcript));
@@ -231,11 +253,10 @@ export class RealtimeConversation {
 				transcript,
 				this.context,
 				this.openAiApiKey,
-				this.elevenLabsApiKey,
 				this.userId,
 				this.language,
 				this.persona,
-				(audio) => this.client.send(audio),
+				this.speech,
 				(reply) => this.client.send(message("reply", reply)),
 			);
 			await this.finalize(true, {
@@ -273,7 +294,8 @@ export class RealtimeConversation {
 		const error =
 			cause instanceof Error ? cause : new Error("Conversation failed");
 		console.error(error);
-		this.transcriber.close();
+		this.transcriber?.close();
+		void this.speech.then((speech) => speech.cancel()).catch(() => undefined);
 		void this.finalize(false, {
 			audioMs: Math.round(this.bytesReceived / 48),
 			latencyMs: this.committedAt ? Date.now() - this.committedAt : 0,
@@ -284,7 +306,8 @@ export class RealtimeConversation {
 
 	cancel() {
 		if (this.finalized) return;
-		this.transcriber.close();
+		this.transcriber?.close();
+		void this.speech.then((speech) => speech.cancel()).catch(() => undefined);
 		void this.finalize(false, {
 			audioMs: Math.round(this.bytesReceived / 48),
 		});

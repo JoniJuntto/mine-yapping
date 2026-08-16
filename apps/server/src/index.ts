@@ -157,6 +157,7 @@ new Elysia()
 	)
 	.ws("/api/converse/stream", {
 		query: t.Object({
+			mode: t.Optional(t.Literal("text")),
 			entityId: t.String({ minLength: 1, maxLength: 100 }),
 			entityType: t.String({ minLength: 1, maxLength: 100 }),
 			entityName: t.String({ minLength: 1, maxLength: 100 }),
@@ -170,6 +171,7 @@ new Elysia()
 				ws,
 				ws.data.request,
 				ws.data.query,
+				ws.data.query.mode === "text",
 			);
 			realtimeSessions.set(ws.id, { ready, messages: Promise.resolve() });
 			void ready.catch((cause) => {
@@ -188,6 +190,8 @@ new Elysia()
 					if (typeof incoming === "string") {
 						if (incoming === "commit") conversation.commit();
 						else if (incoming === "cancel") conversation.cancel();
+						else if (incoming.startsWith("text:"))
+							conversation.sendText(incoming.slice(5));
 						return;
 					}
 					conversation.sendAudio(incoming);
