@@ -126,7 +126,7 @@ export class RealtimeConversation {
 					JSON.stringify({
 						type: "session.update",
 						session: {
-							type: "realtime",
+							type: "transcription",
 							audio: {
 								input: {
 									format: { type: "audio/pcm", rate: 24_000 },
