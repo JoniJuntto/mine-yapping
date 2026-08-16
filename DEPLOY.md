@@ -110,7 +110,7 @@ POLAR_WEBHOOK_SECRET=REPLACE_ME
 POLAR_SUCCESS_URL=https://mine-yapper.com
 POLAR_SERVER=production
 # Maps credit pack slugs to Polar product ids (one-time products).
-POLAR_CREDIT_PRODUCTS=credits-1000:prod_x,credits-1750:prod_y,credits-2500:prod_z
+POLAR_CREDIT_PRODUCTS=credits-300:prod_w,credits-1000:prod_x,credits-1750:prod_y,credits-2500:prod_z
 CORS_ORIGIN=https://mine-yapper.com
 OPENAI_API_KEY=sk-REPLACE_ME
 ELEVENLABS_API_KEY=sk-REPLACE_ME

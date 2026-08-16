@@ -29,7 +29,8 @@ the jar, creates a website account and API key, then uses that key in the mod.
   address, credit pack prices, refund policy, and monthly allowance.
   - Seller name: Pöhinä Group Oy, business ID 3419352-5
   - Support email: joni@pohina.group
-  - Credit packs (VAT included): 1000 / €20.90, 1750 / €35.90, 2500 / €49.90.
+  - Credit packs (VAT included in the EU): 300 / €7.90, 1000 / €21.90,
+    1750 / €37.90, 2500 / €53.90.
     Priced to break even even if every request hits the cost caps — see
     `apps/server/src/pricing.test.ts`.
   - Refund policy: 14-day withdrawal, unused credits refunded pro rata
@@ -142,11 +143,12 @@ orders from one environment do not exist in the other.
 ### Sandbox first
 
 1. Create a Polar Sandbox organization.
-2. Create three **one-time** products, one per pack in
+2. Create four **one-time** products, one per pack in
    `packages/auth/src/credits.ts`, and copy each UUID:
-   - **Mine Yapping AI credits — 1000 requests**, €20.90
-   - **Mine Yapping AI credits — 1750 requests**, €35.90
-   - **Mine Yapping AI credits — 2500 requests**, €49.90
+   - **Mine Yapping AI credits — 300 requests**, €7.90
+   - **Mine Yapping AI credits — 1000 requests**, €21.90
+   - **Mine Yapping AI credits — 1750 requests**, €37.90
+   - **Mine Yapping AI credits — 2500 requests**, €53.90
 
    Name them for the AI capacity, never for a Minecraft feature: what is sold is
    metered compute, which is what keeps this clear of both the Minecraft EULA and
@@ -160,7 +162,7 @@ orders from one environment do not exist in the other.
    POLAR_WEBHOOK_SECRET=<sandbox webhook signing secret>
    POLAR_SERVER=sandbox
 	 POLAR_SUCCESS_URL=https://staging.example.com
-   POLAR_CREDIT_PRODUCTS=credits-1000:<uuid>,credits-1750:<uuid>,credits-2500:<uuid>
+   POLAR_CREDIT_PRODUCTS=credits-300:<uuid>,credits-1000:<uuid>,credits-1750:<uuid>,credits-2500:<uuid>
    ```
 
 5. Add a Polar webhook for `order.paid` pointing to

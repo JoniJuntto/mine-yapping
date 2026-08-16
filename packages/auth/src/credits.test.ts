@@ -6,11 +6,11 @@ describe("creditProducts", () => {
 		expect(creditProducts("credits-1000:prod_a, credits-2500:prod_b")).toEqual([
 			{
 				productId: "prod_a",
-				pack: { slug: "credits-1000", credits: 1000, grossEur: 20.9 },
+				pack: { slug: "credits-1000", credits: 1000, grossEur: 21.9 },
 			},
 			{
 				productId: "prod_b",
-				pack: { slug: "credits-2500", credits: 2500, grossEur: 49.9 },
+				pack: { slug: "credits-2500", credits: 2500, grossEur: 53.9 },
 			},
 		]);
 	});

@@ -5,9 +5,12 @@
  * Kept free of env and better-auth imports so both the server's pricing rules and
  * the auth plugin can read it. */
 export const CREDIT_PACKS = [
-	{ slug: "credits-1000", credits: 1000, grossEur: 20.9 },
-	{ slug: "credits-1750", credits: 1750, grossEur: 35.9 },
-	{ slug: "credits-2500", credits: 2500, grossEur: 49.9 },
+	// Polar's fixed €0.50 per order is 6% of this one, so it carries the highest
+	// price per request — 357 credits is all €7.90 covers at the caps.
+	{ slug: "credits-300", credits: 300, grossEur: 7.9 },
+	{ slug: "credits-1000", credits: 1000, grossEur: 21.9 },
+	{ slug: "credits-1750", credits: 1750, grossEur: 37.9 },
+	{ slug: "credits-2500", credits: 2500, grossEur: 53.9 },
 ] as const;
 
 export type CreditPack = (typeof CREDIT_PACKS)[number];

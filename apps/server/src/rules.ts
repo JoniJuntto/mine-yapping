@@ -68,10 +68,12 @@ export const worstCaseRequestUsd = estimatedApiCostUsd({
 // ponytail: flat rate is enough while we bill in EUR and pay in USD; revisit if FX moves.
 const EUR_PER_USD = 0.92;
 // Finland's 25.5% is the highest VAT Polar will charge on our behalf, so it is the
-// worst case. Polar is merchant of record: 4% + €0.40 per order.
+// worst case. Polar is merchant of record on the Starter plan: 5% + €0.50, plus 1.5%
+// for non-US cards (which is nearly every customer we have) and ~0.25% EU currency
+// conversion. Drop these to 3.8% + €0.40 if we ever pay for Polar Pro.
 const VAT_RATE = 0.255;
-const POLAR_RATE = 0.04;
-const POLAR_FIXED_EUR = 0.4;
+const POLAR_RATE = 0.05 + 0.015 + 0.0025;
+const POLAR_FIXED_EUR = 0.5;
 
 /** What actually lands in the bank from a VAT-inclusive sticker price. */
 export const netRevenueEur = (grossEur: number) =>

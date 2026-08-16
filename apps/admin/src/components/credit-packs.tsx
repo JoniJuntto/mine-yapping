@@ -96,8 +96,8 @@ export function CreditPacks({
 			)}
 			<p className="text-ink/55 text-xs leading-5">
 				{locale === "fi"
-					? "Krediitit ovat AI-käyttöä: yksi krediitti = yksi pyyntö. Ne eivät vanhene eivätkä avaa ominaisuuksia — modi ja sen ominaisuudet ovat ilmaisia. Hinnat sisältävät alv:n. Jatkamalla hyväksyt "
-					: "Credits are AI usage: one credit = one request. They never expire and unlock no features — the mod and its features are free. Prices include VAT. By continuing you agree to the "}
+					? "Krediitit ovat AI-käyttöä: yksi krediitti = yksi pyyntö. Ne eivät vanhene eivätkä avaa ominaisuuksia — modi ja sen ominaisuudet ovat ilmaisia. Hinnat sisältävät alv:n EU:ssa; verot näytetään kassalla. Jatkamalla hyväksyt "
+					: "Credits are AI usage: one credit = one request. They never expire and unlock no features — the mod and its features are free. Prices include VAT in the EU; taxes are shown at checkout. By continuing you agree to the "}
 				<Link
 					to="/terms"
 					search={true}

@@ -26,7 +26,7 @@ describe("credit pack pricing", () => {
 		expect(perRequest).toEqual([...perRequest].sort((a, b) => b - a));
 	});
 
-	test("VAT and Polar fees take roughly a quarter of the sticker price", () => {
-		expect(netRevenueEur(20.9)).toBeCloseTo(15.59, 2);
+	test("VAT and Polar fees take about 28% of the sticker price", () => {
+		expect(netRevenueEur(21.9)).toBeCloseTo(15.77, 2);
 	});
 });

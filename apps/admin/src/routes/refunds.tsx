@@ -22,9 +22,10 @@ function RefundsPage() {
 			<h2>1. What you are buying</h2>
 			<p>
 				AI credits are prepaid requests on our AI pipeline. One credit is one
-				request. Packs are sold at fixed prices including VAT, credits never
-				expire, and they are spent only once your monthly free allowance runs
-				out. The mod and all of its features are free with or without credits.
+				request. Packs are sold at fixed prices, VAT included for EU customers,
+				credits never expire, and they are spent only once your monthly free
+				allowance runs out. The mod and all of its features are free with or
+				without credits.
 			</p>
 
 			<h2>2. Your 14-day right of withdrawal</h2>

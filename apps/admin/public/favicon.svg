@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Mine Yapping</title>
+  <rect x="12" y="12" width="232" height="232" rx="88" fill="#276c68"/>
+  <path d="M55 69c0-18 15-33 33-33h80c18 0 33 15 33 33v61c0 18-15 33-33 33h-41l-45 43 9-43h-3c-18 0-33-15-33-33z" fill="#fffdf8"/>
+  <path d="M91 94v22m25-40v59m25-42v25m25-37v51" fill="none" stroke="#e06a47" stroke-width="13" stroke-linecap="round"/>
+</svg>

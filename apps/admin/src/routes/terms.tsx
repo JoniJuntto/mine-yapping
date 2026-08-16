@@ -114,8 +114,9 @@ function TermsPage() {
 				So that a single request cannot consume unlimited capacity, each request
 				is subject to technical limits on input audio length and spoken reply
 				length. Purchases are processed by Polar, which acts as merchant of
-				record and is the seller for the transaction. Prices shown include VAT.
-				Refund and withdrawal rules are described in the{" "}
+				record and is the seller for the transaction. Prices shown include VAT
+				for EU customers; the exact tax is shown at checkout. Refund and
+				withdrawal rules are described in the{" "}
 				<Link to="/refunds">Refund and Cancellation Policy</Link>.
 			</p>
 
