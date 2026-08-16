@@ -94,6 +94,7 @@ type PromptChoice = {
 type ExistingPersona = {
 	promptId: string | null;
 	prompt: string | null;
+	ownerUserId?: string | null;
 	voiceId: string;
 };
 
@@ -105,7 +106,26 @@ export const choosePersona = (
 	random = Math.random,
 	userId?: string,
 ) => {
-	if (existing?.promptId && existing.prompt) {
+	const userTiers = userId
+		? [
+				candidates.filter(
+					(candidate) =>
+						candidate.ownerUserId === userId &&
+						candidate.entityType === entityType,
+				),
+				candidates.filter(
+					(candidate) =>
+						candidate.ownerUserId === userId && candidate.entityType === "*",
+				),
+			]
+		: [];
+	if (
+		existing?.promptId &&
+		existing.prompt &&
+		(!userId ||
+			existing.ownerUserId === userId ||
+			!userTiers.some((tier) => tier.length))
+	) {
 		return {
 			promptId: existing.promptId,
 			prompt: existing.prompt,
@@ -114,19 +134,7 @@ export const choosePersona = (
 		};
 	}
 	const tiers = [
-		...(userId
-			? [
-					candidates.filter(
-						(candidate) =>
-							candidate.ownerUserId === userId &&
-							candidate.entityType === entityType,
-					),
-					candidates.filter(
-						(candidate) =>
-							candidate.ownerUserId === userId && candidate.entityType === "*",
-					),
-				]
-			: []),
+		...userTiers,
 		candidates.filter(
 			(candidate) =>
 				!candidate.ownerUserId && candidate.entityType === entityType,
@@ -166,6 +174,7 @@ export async function personaFor(
 			.select({
 				promptId: mobPersona.promptId,
 				prompt: mobPrompt.prompt,
+				ownerUserId: mobPrompt.ownerUserId,
 				voiceId: mobPersona.voiceId,
 			})
 			.from(mobPersona)
@@ -174,7 +183,11 @@ export async function personaFor(
 				and(eq(mobPersona.userId, userId), eq(mobPersona.entityId, entityId)),
 			)
 			.limit(1);
-		if (existing?.promptId && existing.prompt) {
+		if (
+			existing?.promptId &&
+			existing.prompt &&
+			existing.ownerUserId === userId
+		) {
 			return choosePersona(existing, [], entityType, voiceIds);
 		}
 

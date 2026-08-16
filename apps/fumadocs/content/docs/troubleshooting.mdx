@@ -29,14 +29,17 @@ icon: CircleHelp
 | --- | --- |
 | `Look at a mob or move within 8 blocks.` | No living entity in range. Target one, or step closer. |
 | `Hold V a little longer so I can hear you.` | Under ~30 ms of audio was captured. Hold the key while you speak, and release after. |
-| `Microphone unavailable: …` | The JVM could not open a capture device. Grant OS microphone permission, set a working default input, restart Minecraft. |
+| `Microphone unavailable: …` | The JVM could not open a capture device. Set a working default input and restart Minecraft. On macOS, use Prism Launcher as explained below. |
+| macOS transcription times out / no microphone prompt appears | The official Minecraft Launcher cannot request microphone access. Run the Fabric instance through Prism Launcher. |
 | `24 kHz microphone not supported` | The default input device cannot do 24 kHz 16-bit mono. Switch input device, or check for exclusive-mode locks by other apps. |
 | `Speech playback failed: …` / `24 kHz stereo playback is not supported` | The default output device could not be opened. Change the default output device and restart Minecraft. |
 | Chat lines appear but there is no sound | Check system volume and that the reply is not coming from a mob far away — volume falls off with distance. |
 
 <Callout type="info" title="macOS microphone permission">
-  macOS asks once, and denying it is sticky. Re-enable under **System Settings → Privacy
-  & Security → Microphone** for your launcher (or Java), then restart Minecraft.
+  Use [Prism Launcher](https://prismlauncher.org/download/macos/). The official Minecraft
+  Launcher lacks the audio-input entitlement, so macOS denies access without showing a
+  prompt. If Prism was previously denied, enable it under **System Settings → Privacy &
+  Security → Microphone**, then restart Prism and Minecraft.
 </Callout>
 
 ## Server and quota errors

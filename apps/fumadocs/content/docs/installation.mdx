@@ -15,7 +15,7 @@ have never installed a Minecraft mod, or if the quick path did not work.
 | Loader | **Fabric Loader 0.19.3** or newer |
 | Library | **Fabric API** matching your Minecraft version (`0.141.6+1.21.11` for 1.21.11) |
 | Java | **21+** — the Fabric profile uses the runtime the launcher ships, so you normally do not install anything |
-| OS | Windows, macOS, or Linux **desktop** |
+| OS | Windows or Linux desktop; macOS desktop using **Prism Launcher** |
 | Hardware | A working microphone and audio output |
 | Account | A free account on [mine-yapper.com](https://mine-yapper.com) |
 
@@ -26,17 +26,28 @@ have never installed a Minecraft mod, or if the quick path did not work.
   launchers ship. **Forge and NeoForge** are not supported either — this is a Fabric mod.
 </Callout>
 
+<Callout type="warn" title="macOS requires Prism Launcher">
+  The official Minecraft Launcher for macOS lacks the audio-input entitlement needed
+  to show a microphone permission prompt. Use
+  [Prism Launcher](https://prismlauncher.org/download/macos/) for voice input. A Fabric
+  mod cannot add this permission to the official launcher.
+</Callout>
+
 ## 1. Install Fabric Loader
 
 <Steps>
 
 <Step>
 
-### Run the installer
+### Install Fabric
 
-Download the [official Fabric installer](https://fabricmc.net/use/installer/) and run it.
-Choose Minecraft version **1.21.11**, leave the loader version at the latest, and click
+On Windows or Linux, download the
+[official Fabric installer](https://fabricmc.net/use/installer/) and run it. Choose
+Minecraft version **1.21.11**, leave the loader version at the latest, and click
 **Install**.
+
+On macOS, install [Prism Launcher](https://prismlauncher.org/download/macos/), choose
+**Add Instance**, select Minecraft **1.21.11** and **Fabric**, then create the instance.
 
 </Step>
 
@@ -44,8 +55,8 @@ Choose Minecraft version **1.21.11**, leave the loader version at the latest, an
 
 ### Launch the profile once
 
-Open the Minecraft Launcher, select the new **fabric-loader-1.21.11** profile, and start
-the game once. This creates the folders the mod needs. Then close Minecraft.
+Start the new **fabric-loader-1.21.11** profile or Prism instance once. This creates the
+folders the mod needs. Then close Minecraft.
 
 </Step>
 
@@ -91,11 +102,7 @@ copy (`mineyapping-<version>.jar`) and SHA-256 checksums.
     ```
   </Tab>
   <Tab>
-    In Finder press <kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>G</kbd> and paste the path.
-
-    ```text
-    ~/Library/Application Support/minecraft/mods
-    ```
+    In Prism Launcher, select the instance, then choose **Edit → Mods → Add file**.
   </Tab>
   <Tab>
     ```text
@@ -114,13 +121,13 @@ Rules:
 
 ## 5. Verify it loaded
 
-Start Minecraft with the Fabric profile. On the title screen, **Mods** should list
-**MineYapping**. If your OS asks for microphone permission, allow it.
+Start Minecraft with the Fabric profile or Prism instance. On the title screen,
+**Mods** should list **MineYapping**. If your OS asks for microphone permission, allow it.
 
 <Callout type="info" title="macOS microphone permission">
-  macOS only prompts once. If you missed it, enable it under
-  **System Settings → Privacy & Security → Microphone** for your launcher (or for Java),
-  then restart Minecraft.
+  Prism Launcher prompts for microphone access when the mod first records. Allow it. If
+  you previously denied it, enable **Prism Launcher** under **System Settings → Privacy
+  & Security → Microphone**, then restart Prism and Minecraft.
 </Callout>
 
 ## 6. Connect your account

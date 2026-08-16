@@ -74,7 +74,8 @@ A random ElevenLabs voice is assigned at the same time.
 The chosen prompt and voice are stored against the mob's UUID in the database, so:
 
 - The same cow keeps the same personality and voice **across restarts**.
-- Adding a new prompt does not re-roll mobs you have already talked to.
+- Adding your first matching prompt replaces global prompts already assigned to your mobs.
+- Adding another personal prompt does not re-roll mobs already using one of your prompts.
 - **Deleting** a personality re-rolls every mob that was using it. The dashboard warns
   you before deleting for this reason.
 - Disabling a prompt stops it being assigned to *new* mobs; mobs already holding it keep

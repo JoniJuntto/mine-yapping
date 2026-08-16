@@ -288,6 +288,9 @@ docker compose logs -f server
 
 ## Known limitations
 
+- **The official Minecraft Launcher on macOS cannot capture microphone audio.**
+  It lacks the audio-input entitlement required for the permission prompt. Use
+  [Prism Launcher](https://prismlauncher.org/download/macos/) for voice input.
 - **Android is not supported yet.** Mic capture uses `javax.sound.sampled`, which
   has no working mixer on the Android OpenJDK builds that PojavLauncher-family
   launchers ship. Moving capture to LWJGL's OpenAL (`ALC11.alcCaptureOpenDevice`)

@@ -371,8 +371,9 @@ Publish this section on the website alongside the download button.
 
 - A legitimate Minecraft: Java Edition installation matching the version listed
   on the download page. Bedrock Edition is not supported.
-- A desktop Windows, macOS, or Linux computer. Android/PojavLauncher is not
-  supported.
+- A desktop Windows or Linux computer, or macOS using Prism Launcher. The
+  official Minecraft Launcher for macOS cannot request microphone access.
+  Android/PojavLauncher is not supported.
 - Fabric Loader matching the listed Minecraft version.
 - Fabric API matching the listed Minecraft version.
 - A working microphone and audio output.
@@ -383,7 +384,9 @@ Publish this section on the website alongside the download button.
    [Fabric installer](https://fabricmc.net/use/installer/).
 2. Download the matching Fabric API jar from an official Fabric distribution
    link.
-3. Launch the Fabric profile once, then close Minecraft.
+3. On macOS, create and launch the Fabric instance with
+   [Prism Launcher](https://prismlauncher.org/download/macos/). On Windows or
+   Linux, launch the Fabric profile once. Then close Minecraft.
 4. Download `mineyapping.jar` from the Mine Yapping website. Do not download the
    repository's “Source code” zip/tarball.
 5. Put both the Fabric API jar and `mineyapping.jar` in the `mods` folder:
@@ -391,13 +394,14 @@ Publish this section on the website alongside the download button.
    | OS | Default folder |
    | --- | --- |
    | Windows | `%APPDATA%\.minecraft\mods` |
-   | macOS | `~/Library/Application Support/minecraft/mods` |
+   | macOS | Prism instance → **Edit → Mods → Add file** |
    | Linux | `~/.minecraft/mods` |
 
    Create `mods` if it does not exist. Remove older Mine Yapping jars so only one
    version is installed.
-6. Start Minecraft with the Fabric profile. Confirm **MineYapping** appears in
-   the loaded mods list/log and grant microphone access if the OS asks.
+6. Start Minecraft with the Fabric profile or Prism instance. Confirm
+   **MineYapping** appears in the loaded mods list/log and grant microphone
+   access if the OS asks.
 
 ### Connect the account
 
@@ -441,7 +445,7 @@ full key.
 | `Run /login <token>` | Create a dashboard key and run the client command in a world. |
 | `Invalid or revoked Minecraft API key` | Create a new key, run `/login` again, and revoke the old one. |
 | `Look at a mob or move within 8 blocks` | Target a living mob within range. |
-| `Microphone unavailable` | Grant OS microphone permission, select a working default input, then restart Minecraft. |
+| `Microphone unavailable` | Select a working default input and restart Minecraft. On macOS, use Prism Launcher; the official launcher cannot request microphone access. |
 | `Monthly free usage limit reached and no AI credits left` / HTTP 402 | Wait for the UTC calendar-month reset, or buy credits. |
 | HTTP 502 mentioning OpenAI/ElevenLabs | Service/provider incident; retry later and check the status page. |
 | Speech playback failed | Select a working default output device and restart Minecraft. |

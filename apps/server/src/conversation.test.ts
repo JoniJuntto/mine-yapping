@@ -130,6 +130,36 @@ test("personalities prefer user exact, user fallback, then global", () => {
 	).toBe("global-exact");
 });
 
+test("a user personality replaces an assigned global personality", () => {
+	expect(
+		choosePersona(
+			{
+				promptId: "global",
+				prompt: "Global cow",
+				ownerUserId: null,
+				voiceId: "voice",
+			},
+			[
+				{
+					id: "mine",
+					entityType: "minecraft:cow",
+					prompt: "My cow",
+					ownerUserId: "user-1",
+				},
+			],
+			"minecraft:cow",
+			["unused"],
+			() => 0,
+			"user-1",
+		),
+	).toEqual({
+		promptId: "mine",
+		prompt: "My cow",
+		voiceId: "voice",
+		shouldPersist: true,
+	});
+});
+
 test("prompt placeholders use mob context and erase unknown values", () => {
 	expect(
 		renderPrompt(

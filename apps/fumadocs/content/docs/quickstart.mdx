@@ -14,8 +14,13 @@ The short version. If any step goes wrong, the long version is in
 
 ### Install Fabric
 
-Download and run the [Fabric installer](https://fabricmc.net/use/installer/), pick
-Minecraft **1.21.11**, and install. Then download the matching **Fabric API** jar from
+On Windows or Linux, download and run the
+[Fabric installer](https://fabricmc.net/use/installer/), pick Minecraft **1.21.11**,
+and install. On macOS, install [Prism Launcher](https://prismlauncher.org/download/macos/)
+and create a Minecraft 1.21.11 instance with Fabric—the official Minecraft Launcher
+cannot request microphone access.
+
+Then download the matching **Fabric API** jar from
 [the Fabric API downloads page](https://fabricmc.net/develop/) — you need version
 `0.141.6+1.21.11` or newer for 1.21.11.
 
@@ -40,9 +45,7 @@ Put it and the Fabric API jar into your `mods` folder:
     ```
   </Tab>
   <Tab>
-    ```text
-    ~/Library/Application Support/minecraft/mods
-    ```
+    In Prism Launcher, select the instance, then choose **Edit → Mods → Add file**.
   </Tab>
   <Tab>
     ```text
@@ -70,7 +73,7 @@ Copy the key immediately — it is shown only once.
 
 ### Log in from the game
 
-Launch Minecraft with the **Fabric** profile, join any world, and type:
+Launch the **Fabric** profile or Prism instance, join any world, and type:
 
 ```text
 /login my_YOUR_KEY_HERE
