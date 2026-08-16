@@ -1,7 +1,7 @@
 # Publishing Mine Yapping
 
 This is the release runbook for turning the repository into a public, free
-service at `https://mine-yapper.com`, funded by optional donations.
+service at `https://mine-yapper.com`, funded by optional AI credit packs.
 
 `DEPLOY.md` is the command-by-command VPS/Caddy/PostgreSQL guide. This document
 covers the larger launch: product decisions, legal and provider setup, payment,
@@ -12,11 +12,11 @@ the downloadable mod, user onboarding, verification, operations, and rollback.
 | Part | Production location | How it ships |
 | --- | --- | --- |
 | Product website and dashboard | `https://mine-yapper.com` | `web` Docker container behind Caddy |
-| Auth, donations, admin, and conversation API | `https://mine-yapper.com/api/*` | `server` Docker container behind Caddy |
+| Auth, purchases, admin, and conversation API | `https://mine-yapper.com/api/*` | `server` Docker container behind Caddy |
 | PostgreSQL | UpCloud Managed PostgreSQL | Private/TLS database connection |
 | Fabric client mod | GitHub Releases | Free downloadable jar |
 | AI providers | OpenAI + ElevenLabs | Server-side API calls only |
-| Donations | Polar | Hosted one-time checkout |
+| AI credits | Polar (merchant of record) | Hosted one-time checkout |
 
 The mod is client-only. It does not go on a Minecraft server. A player installs
 the jar, creates a website account and API key, then uses that key in the mod.
@@ -26,17 +26,21 @@ the jar, creates a website account and API key, then uses that key in the mod.
 ### Product and legal
 
 - [ ] Choose the legal seller name, country, support email, public contact
-  address, donation amount/currency, refund policy, and monthly allowance.
-  - Seller name: Pöhinä Group Oy
+  address, credit pack prices, refund policy, and monthly allowance.
+  - Seller name: Pöhinä Group Oy, business ID 3419352-5
   - Support email: joni@pohina.group
-  - Donation amount: any amount from 1€ up
-  - Refund policy: No refunds
+  - Credit packs (VAT included): 1000 / €20.90, 1750 / €35.90, 2500 / €49.90.
+    Priced to break even even if every request hits the cost caps — see
+    `apps/server/src/pricing.test.ts`.
+  - Refund policy: 14-day withdrawal, unused credits refunded pro rata
   - Base monthly allowance: 100 requests; Twitch accounts receive 150
 - [x] Review the model against the current
   [Minecraft EULA](https://www.minecraft.net/eula) and
   [Minecraft Usage Guidelines](https://www.minecraft.net/usage-guidelines).
-  The mod is free, donations grant no benefits, and authorization never checks
-  Polar customer state. Re-review before changing any of those facts.
+  The mod is free and fully featured, credits buy only metered AI capacity (never
+  a feature or a gameplay advantage), BYOK and self-hosting stay free and
+  unlimited, and authorization never checks Polar customer state. Re-review
+  before changing any of those facts.
 - [x] Put this prominently on the website and mod metadata, and also include it
   on the download page, release notes, and
   store description: **“NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR
@@ -60,7 +64,7 @@ This is an engineering checklist, not legal or tax advice.
 - [x] Add a visible **Download mod** link to the landing page and signed-in
   dashboard. Point it at the stable release asset described below.
 - [x] State that the mod is free, all users have the same monthly allowance, and
-  donations grant no features or additional usage.
+  credits buy requests only — no features, no extra allowance.
 - [ ] Decide account recovery. The current app has no password reset, email
   verification, or email delivery. For a small closed beta, document manual
   support recovery; before public launch, add a verified recovery path.
@@ -71,12 +75,12 @@ This is an engineering checklist, not legal or tax advice.
   2. Confirm identity from the account email / Twitch link / recent activity.
   3. Delete the app user (Better Auth admin `removeUser`, or delete the `user`
      row). Cascades remove sessions, credentials, API keys, BYOK keys, usage
-     events, and personas. Do **not** delete `donation` rows (accounting / public
-     donor list; keyed by Polar `customerId`, not `userId`).
+     events, and personas. `purchase` rows cascade with the user, so **copy them
+     out first**: Finnish bookkeeping law requires six years of retention.
   4. In Polar, delete/anonymize the customer with
      `polar.customers.deleteExternal({ externalId: <userId> })` (or the dashboard
      equivalent). App user delete does **not** remove the Polar customer today.
-  5. Reply confirming deletion and what was retained (donation accounting,
+  5. Reply confirming deletion and what was retained (purchase accounting,
      Polar/Twitch/provider-side records, backups until expiry).
   Do not promise in-product self-service deletion until a UI exists and Polar
   cleanup is hooked (e.g. Better Auth `user.deleteUser.afterDelete` →
@@ -130,7 +134,7 @@ team password manager.
 Record the owner, renewal date, billing account, and recovery method for every
 account. Never put secret values in this file.
 
-## 2. Configure and test Polar donations
+## 2. Configure and test Polar credit packs
 
 Polar Sandbox and Production are isolated: tokens, products, customers, and
 orders from one environment do not exist in the other.
@@ -138,7 +142,15 @@ orders from one environment do not exist in the other.
 ### Sandbox first
 
 1. Create a Polar Sandbox organization.
-2. Create one **one-time** product named **Support Mine Yapping**. Copy its UUID.
+2. Create three **one-time** products, one per pack in
+   `packages/auth/src/credits.ts`, and copy each UUID:
+   - **Mine Yapping AI credits — 1000 requests**, €20.90
+   - **Mine Yapping AI credits — 1750 requests**, €35.90
+   - **Mine Yapping AI credits — 2500 requests**, €49.90
+
+   Name them for the AI capacity, never for a Minecraft feature: what is sold is
+   metered compute, which is what keeps this clear of both the Minecraft EULA and
+   Finnish money-collection law.
 3. In Polar organization settings, create a sandbox Organization Access Token.
    Keep it server-side. Give it only the scopes needed for checkout sessions.
 4. Configure the deployed staging server with:
@@ -148,17 +160,19 @@ orders from one environment do not exist in the other.
    POLAR_WEBHOOK_SECRET=<sandbox webhook signing secret>
    POLAR_SERVER=sandbox
 	 POLAR_SUCCESS_URL=https://staging.example.com
+   POLAR_CREDIT_PRODUCTS=credits-1000:<uuid>,credits-1750:<uuid>,credits-2500:<uuid>
    ```
 
 5. Add a Polar webhook for `order.paid` pointing to
    `https://staging.example.com/api/auth/polar/webhooks`.
-6. Sign in as an admin, open **Admin → Settings**, set **Polar donation product ID**
-   to the sandbox product UUID, and save. Until this value exists, checkout is
-   disabled for signed-in users.
-7. Click **Donate** while signed out and signed in, complete each sandbox
-   sandbox checkout, and confirm return to the landing page.
-8. Verify successful, failed, canceled, and refunded donations never change the
-   donor's features or monthly quota.
+6. Restart the API so `POLAR_CREDIT_PRODUCTS` is picked up. Packs are hidden
+   until it is set, and checkout requires a signed-in user.
+7. Buy each pack in sandbox and confirm the balance on **Dashboard → Account**
+   rises by exactly the pack size, and that the return lands on the landing page.
+8. Redeliver an `order.paid` webhook from the Polar dashboard and confirm the
+   balance does **not** move a second time.
+9. Verify credits change nothing but the balance: same features, same monthly
+   free allowance, no priority.
 
 ### Move to live payments
 
@@ -179,10 +193,10 @@ orders from one environment do not exist in the other.
 
 5. Add the production `order.paid` webhook pointing to
    `https://mine-yapper.com/api/auth/polar/webhooks`.
-6. Deploy/restart the API, then put the **production** product UUID in
-   **Admin → Settings**. A sandbox UUID will not work in Production.
-7. Make one controlled live donation. Verify checkout, receipt, unchanged quota,
-   and the Polar order/payout record. Refund it if appropriate.
+6. Put the **production** product UUIDs in `POLAR_CREDIT_PRODUCTS` and restart
+   the API. Sandbox UUIDs will not work in Production.
+7. Buy one pack live. Verify checkout, VAT on the receipt, the credited balance,
+   and the Polar order/payout record. Refund it to exercise the refund path.
 
 Useful official references:
 
@@ -246,7 +260,7 @@ web image and is already set to `https://mine-yapper.com` in
 8. Create the first account, promote it to `admin` directly in PostgreSQL, sign
    out, and sign back in so the new role is in the session.
 9. In **Admin → Settings**, set the base monthly request count
-   and the live Polar donation product UUID.
+   and the live Polar credit product UUIDs.
 10. Create at least one enabled global `*` fallback personality. The migration
     supplies one; verify it was not deleted.
 11. Keep the previous known-good commit and database backup identifier recorded
@@ -292,7 +306,7 @@ The current release targets:
 5. Test the resulting jar, not a development run configuration, in a clean
    Minecraft instance with only matching Fabric Loader, Fabric API, and the jar.
 6. Test sign-up/login, `/login`, text conversation, microphone conversation,
-   TTS playback, quota rejection, invalid/revoked key, donation checkout, restart,
+   TTS playback, quota rejection, invalid/revoked key, credit checkout, restart,
    and multiplayer on a server that has no Mine Yapping server mod.
 7. Scan the jar and inspect it to ensure it contains no API key, `.env`, database
    URL, source map with secrets, or third-party game files.
@@ -426,7 +440,7 @@ full key.
 | `Invalid or revoked Minecraft API key` | Create a new key, run `/login` again, and revoke the old one. |
 | `Look at a mob or move within 8 blocks` | Target a living mob within range. |
 | `Microphone unavailable` | Grant OS microphone permission, select a working default input, then restart Minecraft. |
-| `Monthly free usage limit reached` / HTTP 402 | Wait for the UTC calendar-month reset. Donations do not increase the limit. |
+| `Monthly free usage limit reached and no AI credits left` / HTTP 402 | Wait for the UTC calendar-month reset, or buy credits. |
 | HTTP 502 mentioning OpenAI/ElevenLabs | Service/provider incident; retry later and check the status page. |
 | Speech playback failed | Select a working default output device and restart Minecraft. |
 | Android/PojavLauncher | Unsupported in the current release. |
@@ -456,18 +470,18 @@ non-writing check is wanted.
   work in a private browser.
 - [ ] A normal user cannot open `/admin` or call `/api/admin/*`.
 - [ ] Admin overview, users, global personalities, bans, API-key revocation, free
-  allowance, and Polar donation product settings work.
+  allowance, and Polar credit pack checkout work.
 - [ ] Users can create/edit/delete only their own personalities and keys.
-- [ ] Download, legal, support, donation, and refund links are visible and
+- [ ] Download, legal, support, purchase, and refund links are visible and
   work without signing in.
 - [ ] Security headers, CORS, cookie `Secure`/`HttpOnly`/`SameSite`, and request
   body limits are correct through Caddy.
 
-### Donations
+### Credit packs
 
-- [ ] Checkout uses the one-time production donation product and expected amount/currency.
+- [ ] Checkout uses the one-time production products and the expected VAT-inclusive prices.
 - [ ] Successful checkout returns to the landing page.
-- [ ] Successful, failed, canceled, and refunded donations never change features
+- [ ] Successful, failed, canceled, and refunded purchases never change features
   or the monthly request limit.
 - [ ] Standard users are rejected at the base limit and Twitch users at 1.5×.
 - [ ] Refund, receipt, support, and reconciliation procedures are written down.
@@ -502,9 +516,9 @@ non-writing check is wanted.
 4. Re-run the production smoke tests above.
 5. Enable the production Polar product ID only after checkout/legal/support pages
    are live.
-6. Announce to a small beta group first. Watch errors, latency, donations,
+6. Announce to a small beta group first. Watch errors, latency, purchases,
    refunds, quotas, and provider spend for at least one full usage cycle.
-7. Open the wider launch only if no data-loss, donation, or spend
+7. Open the wider launch only if no data-loss, billing, or spend
    issue remains.
 
 ## 8. Routine release procedure
@@ -524,11 +538,11 @@ For every application or mod update:
 
 Monthly:
 
-- Reconcile Polar donation orders/refunds/payouts.
+- Reconcile Polar credit orders/refunds/payouts against `purchase` rows.
 - Review OpenAI/ElevenLabs cost per successful request and user outliers.
 - Review failed requests, latency, disk/database growth, backup results, expired
   secrets/certificates, admin accounts, and revoked staff access.
-- Test one new sign-up, donation checkout, API key, and real conversation.
+- Test one new sign-up, credit checkout, API key, and real conversation.
 
 For every Minecraft release, verify compatibility before changing the advertised
 version. Never claim broad compatibility from the current `>=26.1` manifest
@@ -536,7 +550,7 @@ alone; test the exact release.
 
 ## 9. Incident and rollback basics
 
-- **Donation checkout fails:** remove the Polar product ID in **Admin → Settings**
+- **Credit checkout fails:** clear `POLAR_CREDIT_PRODUCTS` and restart
   to hide signed-in checkout, investigate, and do not delete payment records.
 - **Provider spend spike:** disable public traffic or set monthly requests
   to `0`, revoke compromised keys, apply provider caps, then investigate. An

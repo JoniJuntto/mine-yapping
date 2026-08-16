@@ -14,6 +14,8 @@ export const env = createEnv({
 		POLAR_ACCESS_TOKEN: z.string().min(1),
 		POLAR_WEBHOOK_SECRET: z.string().min(1),
 		POLAR_SUCCESS_URL: z.url(),
+		// "credits-1000:prod_xxx,credits-1750:prod_yyy". Empty hides the packs entirely.
+		POLAR_CREDIT_PRODUCTS: z.string().default(""),
 		POLAR_SERVER: z.enum(["sandbox", "production"]).default("sandbox"),
 		CORS_ORIGIN: z.url(),
 		OPENAI_API_KEY: z.string().min(1),

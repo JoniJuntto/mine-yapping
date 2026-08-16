@@ -1,83 +1,104 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1786725611771,
-      "tag": "0000_military_amphibian",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1786727127652,
-      "tag": "0001_swift_mariko_yashida",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1786728192286,
-      "tag": "0002_opposite_trish_tilby",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1786739546708,
-      "tag": "0003_quiet_nova",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1786739777323,
-      "tag": "0004_true_bucky",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1786739949692,
-      "tag": "0005_spotty_omega_flight",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1786776072901,
-      "tag": "0006_mute_drax",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1786776481903,
-      "tag": "0007_famous_rawhide_kid",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1786777181896,
-      "tag": "0008_slim_psynapse",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1786782811164,
-      "tag": "0009_parched_midnight",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1786810645372,
-      "tag": "0010_sharp_killer_shrike",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1786725611771,
+			"tag": "0000_military_amphibian",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1786727127652,
+			"tag": "0001_swift_mariko_yashida",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1786728192286,
+			"tag": "0002_opposite_trish_tilby",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1786739546708,
+			"tag": "0003_quiet_nova",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1786739777323,
+			"tag": "0004_true_bucky",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "7",
+			"when": 1786739949692,
+			"tag": "0005_spotty_omega_flight",
+			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1786776072901,
+			"tag": "0006_mute_drax",
+			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1786776481903,
+			"tag": "0007_famous_rawhide_kid",
+			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1786777181896,
+			"tag": "0008_slim_psynapse",
+			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "7",
+			"when": 1786782811164,
+			"tag": "0009_parched_midnight",
+			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "7",
+			"when": 1786810645372,
+			"tag": "0010_sharp_killer_shrike",
+			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "7",
+			"when": 1786867454993,
+			"tag": "0011_drop_donations",
+			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "7",
+			"when": 1786867457991,
+			"tag": "0012_credit_packs",
+			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "7",
+			"when": 1786867763881,
+			"tag": "0013_purchase_survives_deletion",
+			"breakpoints": true
+		}
+	]
 }

@@ -1,5 +1,9 @@
 import { db } from "@mine-yapping/db";
-import { appSettings, usageEvent } from "@mine-yapping/db/schema/app";
+import {
+	appSettings,
+	usageEvent,
+	userCredit,
+} from "@mine-yapping/db/schema/app";
 import { account } from "@mine-yapping/db/schema/auth";
 import { and, count, eq, gte, sql, sum } from "drizzle-orm";
 import { estimatedApiCostUsd, monthlyLimit } from "./rules";
@@ -119,6 +123,23 @@ async function reserveUnderLimit(
 	return result.rows[0]?.id ?? null;
 }
 
+/** Spends one purchased credit. The balance check and the usage row are a single
+ * statement so concurrent requests cannot spend the same credit twice. */
+async function spendCredit(userId: string, inputType: "audio" | "text") {
+	const result = await db.execute<{ id: string }>(sql`
+		with spend as (
+			update ${userCredit} set "balance" = ${userCredit.balance} - 1
+			where ${userCredit.userId} = ${userId} and ${userCredit.balance} > 0
+			returning ${userCredit.userId} as user_id
+		)
+		insert into ${usageEvent} ("user_id", "quota_key", "input_type", "successful", "latency_ms", "billing_mode")
+		select spend.user_id, null, ${inputType}, true, 0, 'credit'
+		from spend
+		returning ${usageEvent.id}
+	`);
+	return result.rows[0]?.id ?? null;
+}
+
 export async function reserveUsage(
 	userId: string,
 	inputType: "audio" | "text",
@@ -138,11 +159,15 @@ export async function reserveUsage(
 			.returning({ id: usageEvent.id });
 		return event?.id ?? null;
 	}
-	return reserveUnderLimit(
-		userId,
-		inputType,
-		await monthlyRequestLimitFor(userId),
-		quotaKey,
+	// Free allowance first: never spend something the player paid for while they
+	// still have free requests left this month.
+	return (
+		(await reserveUnderLimit(
+			userId,
+			inputType,
+			await monthlyRequestLimitFor(userId),
+			quotaKey,
+		)) ?? (await spendCredit(userId, inputType))
 	);
 }
 
@@ -162,7 +187,33 @@ export const finalizeUsage = (
 			| "ttsMs"
 		>
 	>,
-) => db.update(usageEvent).set(values).where(eq(usageEvent.id, id));
+) =>
+	db.transaction(async (tx) => {
+		const [event] = await tx
+			.update(usageEvent)
+			.set(values)
+			.where(eq(usageEvent.id, id))
+			.returning({
+				userId: usageEvent.userId,
+				billingMode: usageEvent.billingMode,
+			});
+		// A failed free request self-heals, because the quota only counts successful
+		// rows. A spent credit does not — the balance is already down. Give it back.
+		if (event && values.successful === false && event.billingMode === "credit")
+			await tx
+				.update(userCredit)
+				.set({ balance: sql`${userCredit.balance} + 1` })
+				.where(eq(userCredit.userId, event.userId));
+	});
+
+export async function creditBalance(userId: string) {
+	const [record] = await db
+		.select({ balance: userCredit.balance })
+		.from(userCredit)
+		.where(eq(userCredit.userId, userId))
+		.limit(1);
+	return record?.balance ?? 0;
+}
 
 export async function globalUsage() {
 	const rows = await db

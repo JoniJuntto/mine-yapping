@@ -39,9 +39,12 @@ export const Route = createRootRoute({
 				},
 				{ property: "og:locale", content: locale === "fi" ? "fi_FI" : "en_US" },
 				{ property: "og:type", content: "website" },
+				{ property: "og:image", content: "/logo.png" },
 			],
 			links: [
 				{ rel: "stylesheet", href: appCss },
+				{ rel: "icon", type: "image/png", href: "/favicon.png" },
+				{ rel: "apple-touch-icon", href: "/favicon.png" },
 				...alternateLinks(match.pathname),
 			],
 		};

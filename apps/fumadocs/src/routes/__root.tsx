@@ -5,7 +5,6 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
-import * as React from "react";
 
 import appCss from "@/styles/app.css?url";
 
@@ -27,8 +26,13 @@ export const Route = createRootRoute({
         content:
           "Documentation for Mine Yapping: install the client-only Fabric mod, connect your account, and talk to Minecraft mobs with your voice.",
       },
+      { property: "og:image", content: "/logo.png" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
+      { rel: "apple-touch-icon", href: "/favicon.png" },
+    ],
   }),
   component: RootComponent,
 });

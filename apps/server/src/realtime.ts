@@ -6,7 +6,13 @@ import {
 	personaForConversation,
 } from "./conversation";
 import { getProviderKeys } from "./provider-key";
-import { type Language, language as resolveLanguage, quotaKey } from "./rules";
+import {
+	type Language,
+	MAX_AUDIO_BYTES,
+	MAX_AUDIO_MS,
+	quotaKey,
+	language as resolveLanguage,
+} from "./rules";
 import { finalizeUsage, reserveUsage } from "./usage";
 
 type ClientSocket = {
@@ -66,7 +72,10 @@ export class RealtimeConversation {
 				identity.user.id,
 			),
 		);
-		if (!reservationId) throw new Error("Monthly free usage limit reached");
+		if (!reservationId)
+			throw new Error(
+				"Monthly free usage limit reached and no AI credits left",
+			);
 		const openAiApiKey = keys?.openAi ?? env.OPENAI_API_KEY;
 		const elevenLabsApiKey = keys?.elevenLabs ?? env.ELEVENLABS_API_KEY;
 		const language = resolveLanguage(identity.user.language);
@@ -152,8 +161,10 @@ export class RealtimeConversation {
 	sendAudio(audio: Uint8Array) {
 		if (this.responding) return;
 		this.bytesReceived += audio.byteLength;
-		if (this.bytesReceived > 5 * 1024 * 1024) {
-			this.fail(new Error("Audio must be under 5 MB"));
+		// Same ceiling as the HTTP path: one credit must not buy minutes of
+		// transcription. bytesReceived/48 is the ms conversion used in respond().
+		if (this.bytesReceived > MAX_AUDIO_BYTES) {
+			this.fail(new Error(`Audio must be under ${MAX_AUDIO_MS / 1000} seconds`));
 			return;
 		}
 		this.transcriber.send(

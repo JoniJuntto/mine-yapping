@@ -84,7 +84,8 @@ Details:
   signup.
 - Over the limit, the mod shows `Conversation failed (402): Monthly free usage limit
   reached`. Nothing breaks — the allowance simply returns next month.
-- **Donations do not raise the limit.** They grant no features and no extra usage.
+- **[AI credits](#ai-credits) cover requests past the limit.** They grant no features
+  and no extra allowance — just the requests themselves.
 
 Your current usage is on **Dashboard**: requests this month, BYOK requests, AI tokens,
 and spoken characters.
@@ -112,17 +113,36 @@ covers everything.
 The mod re-checks the setting when you start talking, at most every 5 minutes — so a
 change takes effect without restarting the game.
 
-## Donations
+## AI credits
 
-Donations go through Polar, are optional, and are one-time. They **do not** change your
-features, limit, or priority. Refund policy and legal terms are linked in the site
-footer.
+Every request costs us real money in speech recognition, language model tokens, and
+speech synthesis. Credits are how you pay for requests beyond the free allowance.
+
+| | |
+| --- | --- |
+| **1 credit** | 1 request |
+| **Expiry** | Never |
+| **Spent** | Only after the monthly free allowance runs out |
+| **Unlocks** | Nothing — every feature is free |
+
+Packs are bought under **Dashboard → Account**, through Polar as merchant of record.
+Prices include VAT. A request that fails returns its credit automatically.
+
+Two limits keep one request from costing more than one credit: input audio is capped at
+**20 seconds** and a spoken reply at **200 characters**. Personalities that ask for long
+answers get truncated rather than billed extra.
+
+You never need credits: the free allowance renews monthly, and
+[your own provider keys](#bring-your-own-keys) or
+[self-hosting](/docs/self-hosting) remove the limit entirely at no charge.
+
+Refund policy and legal terms are linked in the site footer.
 
 ## Deleting your account
 
 Email the support address in the site footer from your account email. Conversation
-personas, API keys, sessions, and usage events are deleted; donation records are
-retained for accounting.
+personas, API keys, sessions, and usage events are deleted; purchase records are
+retained for six years as Finnish bookkeeping law requires.
 
 ## Privacy
 

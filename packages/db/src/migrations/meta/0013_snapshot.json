@@ -1,6 +1,6 @@
 {
-	"id": "32d40bd8-90e5-4e2c-b50f-cc799be870cc",
-	"prevId": "8a3828a2-fffa-45a3-91dd-50d3583a7d50",
+	"id": "7b175c35-8198-4632-8166-c20798719e2e",
+	"prevId": "3c99f5e6-c884-4f8d-8d05-bbec42252aee",
 	"version": "7",
 	"dialect": "postgresql",
 	"tables": {
@@ -22,12 +22,6 @@
 					"notNull": true,
 					"default": 100
 				},
-				"polar_product_id": {
-					"name": "polar_product_id",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false
-				},
 				"updated_at": {
 					"name": "updated_at",
 					"type": "timestamp",
@@ -38,6 +32,91 @@
 			},
 			"indexes": {},
 			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.purchase": {
+			"name": "purchase",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"customer_id": {
+					"name": "customer_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"product_id": {
+					"name": "product_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credits": {
+					"name": "credits",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"nickname": {
+					"name": "nickname",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"show_nickname": {
+					"name": "show_nickname",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"amount": {
+					"name": "amount",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"currency": {
+					"name": "currency",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"purchase_user_id_user_id_fk": {
+					"name": "purchase_user_id_user_id_fk",
+					"tableFrom": "purchase",
+					"tableTo": "user",
+					"columnsFrom": ["user_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {},
 			"policies": {},
@@ -61,6 +140,12 @@
 					"primaryKey": false,
 					"notNull": true
 				},
+				"quota_key": {
+					"name": "quota_key",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
 				"created_at": {
 					"name": "created_at",
 					"type": "timestamp",
@@ -73,6 +158,13 @@
 					"type": "boolean",
 					"primaryKey": false,
 					"notNull": true
+				},
+				"billing_mode": {
+					"name": "billing_mode",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'free'"
 				},
 				"input_type": {
 					"name": "input_type",
@@ -101,11 +193,39 @@
 					"notNull": true,
 					"default": 0
 				},
+				"audio_ms": {
+					"name": "audio_ms",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
 				"latency_ms": {
 					"name": "latency_ms",
 					"type": "integer",
 					"primaryKey": false,
 					"notNull": true
+				},
+				"stt_ms": {
+					"name": "stt_ms",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"llm_ms": {
+					"name": "llm_ms",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"tts_ms": {
+					"name": "tts_ms",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
 				}
 			},
 			"indexes": {
@@ -114,6 +234,27 @@
 					"columns": [
 						{
 							"expression": "user_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "created_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"usage_event_quota_created_idx": {
+					"name": "usage_event_quota_created_idx",
+					"columns": [
+						{
+							"expression": "quota_key",
 							"isExpression": false,
 							"asc": true,
 							"nulls": "last"
@@ -150,6 +291,97 @@
 				"usage_event_user_id_user_id_fk": {
 					"name": "usage_event_user_id_user_id_fk",
 					"tableFrom": "usage_event",
+					"tableTo": "user",
+					"columnsFrom": ["user_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.user_credit": {
+			"name": "user_credit",
+			"schema": "",
+			"columns": {
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"balance": {
+					"name": "balance",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"user_credit_user_id_user_id_fk": {
+					"name": "user_credit_user_id_user_id_fk",
+					"tableFrom": "user_credit",
+					"tableTo": "user",
+					"columnsFrom": ["user_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.user_provider_key": {
+			"name": "user_provider_key",
+			"schema": "",
+			"columns": {
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"encrypted_openai_key": {
+					"name": "encrypted_openai_key",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"encrypted_elevenlabs_key": {
+					"name": "encrypted_elevenlabs_key",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"user_provider_key_user_id_user_id_fk": {
+					"name": "user_provider_key_user_id_user_id_fk",
+					"tableFrom": "user_provider_key",
 					"tableTo": "user",
 					"columnsFrom": ["user_id"],
 					"columnsTo": ["id"],
@@ -540,6 +772,12 @@
 					"type": "text",
 					"primaryKey": false,
 					"notNull": true
+				},
+				"impersonated_by": {
+					"name": "impersonated_by",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
 				}
 			},
 			"indexes": {
@@ -616,6 +854,13 @@
 					"type": "text",
 					"primaryKey": false,
 					"notNull": false
+				},
+				"language": {
+					"name": "language",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'fi'"
 				},
 				"role": {
 					"name": "role",

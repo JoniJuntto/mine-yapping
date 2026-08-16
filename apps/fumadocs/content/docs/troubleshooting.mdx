@@ -44,7 +44,8 @@ icon: CircleHelp
 | Message | Cause and fix |
 | --- | --- |
 | `Conversation failed: Connection refused` | The backend is unreachable. On the hosted service, check your internet; self-hosting, check the server is running and `serverUrl` is right. |
-| `Conversation failed (402): Monthly free usage limit reached` | You used your allowance. It resets at the start of the next UTC month. Donations do not raise it — see [Account & API key](/docs/account#monthly-limit). |
+| `Conversation failed (402): Monthly free usage limit reached and no AI credits left` | You used your allowance and have no credits. It resets at the start of the next UTC month — see [Account & API key](/docs/account#monthly-limit). |
+| `Conversation failed (413): Audio must be under 20 seconds` | One request is one credit, so recordings are capped. Say it in a shorter burst. |
 | `Conversation failed (503): Could not verify usage limit` | The backend could not reach its database. Retry in a moment. |
 | `Conversation failed (502): OpenAI …` | Upstream transcription/LLM failure or a bad key. Retry; if self-hosting, check `OPENAI_API_KEY`. |
 | `Conversation failed (502): ElevenLabs …` | Upstream speech failure or a bad key. Retry; if self-hosting, check `ELEVENLABS_API_KEY`. |

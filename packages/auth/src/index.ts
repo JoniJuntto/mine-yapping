@@ -1,15 +1,16 @@
 import { apiKey } from "@better-auth/api-key";
 import { createDb } from "@mine-yapping/db";
-import { appSettings, donation } from "@mine-yapping/db/schema/app";
+import { purchase, userCredit } from "@mine-yapping/db/schema/app";
 import * as schema from "@mine-yapping/db/schema/auth";
 import { env } from "@mine-yapping/env/server";
 import { checkout, polar, webhooks } from "@polar-sh/better-auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
+import { sql } from "drizzle-orm";
 import { Resend } from "resend";
 
-import { donorMetadata } from "./donation";
+import { creditProducts, supporterMetadata } from "./credits";
 import { polarClient } from "./lib/payments";
 
 const resend = new Resend(env.RESEND_API_KEY);
@@ -89,32 +90,58 @@ export function createAuth() {
 				createCustomerOnSignUp: true,
 				use: [
 					checkout({
-						products: async () => {
-							const [settings] = await db.select().from(appSettings).limit(1);
-							return settings?.polarProductId
-								? [{ productId: settings.polarProductId, slug: "donate" }]
-								: [];
-						},
+						products: async () =>
+							creditProducts(env.POLAR_CREDIT_PRODUCTS).map(
+								({ productId, pack }) => ({ productId, slug: pack.slug }),
+							),
 						successUrl: env.POLAR_SUCCESS_URL,
-						authenticatedUsersOnly: false,
+						// Credits land on an account, so we have to know whose.
+						authenticatedUsersOnly: true,
 					}),
 					webhooks({
 						secret: env.POLAR_WEBHOOK_SECRET,
 						onOrderPaid: async ({ data }) => {
-							const [settings] = await db.select().from(appSettings).limit(1);
-							if (data.productId !== settings?.polarProductId) return;
-							const donor = donorMetadata(data.metadata);
-							await db
-								.insert(donation)
-								.values({
-									id: data.id,
-									customerId: data.customerId,
-									...donor,
-									amount: data.totalAmount,
-									currency: data.currency,
-									createdAt: data.createdAt,
-								})
-								.onConflictDoNothing();
+							const product = creditProducts(env.POLAR_CREDIT_PRODUCTS).find(
+								({ productId }) => productId === data.productId,
+							);
+							if (!product) return;
+							const { pack } = product;
+							const userId = data.customer?.externalId;
+							if (!userId) {
+								console.error(
+									`Polar order ${data.id} has no external customer id; credits not granted`,
+								);
+								return;
+							}
+							// The order id is the primary key, so a redelivered webhook
+							// inserts nothing and therefore grants nothing twice.
+							await db.transaction(async (tx) => {
+								const [inserted] = await tx
+									.insert(purchase)
+									.values({
+										id: data.id,
+										userId,
+										customerId: data.customerId,
+										productId: product.productId,
+										credits: pack.credits,
+										...supporterMetadata(data.metadata),
+										amount: data.totalAmount,
+										currency: data.currency,
+										createdAt: data.createdAt,
+									})
+									.onConflictDoNothing()
+									.returning({ id: purchase.id });
+								if (!inserted) return;
+								await tx
+									.insert(userCredit)
+									.values({ userId, balance: pack.credits })
+									.onConflictDoUpdate({
+										target: userCredit.userId,
+										set: {
+											balance: sql`${userCredit.balance} + ${pack.credits}`,
+										},
+									});
+							});
 						},
 					}),
 				],

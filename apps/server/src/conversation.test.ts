@@ -4,7 +4,26 @@ import {
 	renderPrompt,
 	shiftCompleteSentence,
 	transcribe,
+	withinSpeechBudget,
 } from "./conversation";
+import { MAX_TTS_CHARACTERS } from "./rules";
+
+describe("withinSpeechBudget", () => {
+	test("passes normal replies through untouched", () => {
+		expect(withinSpeechBudget(0, "Moo. I am a cow.")).toBe("Moo. I am a cow.");
+	});
+
+	test("truncates the sentence that crosses the cap", () => {
+		expect(withinSpeechBudget(MAX_TTS_CHARACTERS - 4, "abcdefg")).toBe("abcd");
+	});
+
+	test("a long-winded personality cannot spend past the cap", () => {
+		let spoken = 0;
+		for (let sentence = 0; sentence < 20; sentence++)
+			spoken += withinSpeechBudget(spoken, "x".repeat(100)).length;
+		expect(spoken).toBe(MAX_TTS_CHARACTERS);
+	});
+});
 
 describe("shiftCompleteSentence", () => {
 	test("holds partial text and emits one complete sentence", () => {

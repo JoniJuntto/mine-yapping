@@ -169,12 +169,8 @@ export function AuthCard({
 	return (
 		<main className="grid min-h-screen place-items-center p-6">
 			<section className="w-full max-w-md">
-				<Link
-					to="/"
-					search={true}
-					className="mb-6 block text-center font-black text-accent text-xl"
-				>
-					Mine Yapping
+				<Link to="/" search={true} className="mb-6 flex justify-center">
+					<img src="/logo.png" alt="Mine Yapping" className="h-16 w-auto" />
 				</Link>
 				<div className="card p-8">
 					<h1 className="mt-0 text-3xl">{title}</h1>

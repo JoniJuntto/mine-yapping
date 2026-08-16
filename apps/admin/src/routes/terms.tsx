@@ -13,9 +13,10 @@ function TermsPage() {
 		<LegalPage title="Terms of Service" updated="15 August 2026">
 			<p>
 				These Terms of Service (“Terms”) govern access to and use of Mine
-				Yapping, operated by Pöhinä Group Oy (“we”, “us”, “our”), including the
-				website at mine-yapper.com, related APIs, and the free Fabric
-				Minecraft client mod (together, the “Service”).
+				Yapping, operated by Pöhinä Group Oy, business ID 3419352-5, Finland
+				(“we”, “us”, “our”), including the website at mine-yapper.com, related
+				APIs, and the free Fabric Minecraft client mod (together, the
+				“Service”).
 			</p>
 			<p>
 				By creating an account, downloading the mod, or using the Service, you
@@ -26,9 +27,10 @@ function TermsPage() {
 			<p>
 				Mine Yapping lets you speak to Minecraft mobs through a client-side mod.
 				Speech and text are processed by our servers and by AI providers so that
-				mobs can reply in character. The mod and website features are free. You
-				may optionally donate; donations do not unlock features or increase
-				usage.
+				mobs can reply in character. The mod and every one of its features are
+				free, and every account receives a monthly allowance of free requests.
+				You may optionally buy AI credits for requests beyond that allowance;
+				credits unlock no features.
 			</p>
 			<p>
 				Mine Yapping is{" "}
@@ -93,11 +95,27 @@ function TermsPage() {
 				notice of material reductions on the website or by email when practical.
 			</p>
 
-			<h2>5. Donations</h2>
+			<h2>5. AI credits</h2>
 			<p>
-				Donations are voluntary one-time payments processed by Polar on our
-				behalf. Donations start from €1 and do not purchase goods, features, or
-				extra usage. Refund and cancellation rules are described in the{" "}
+				AI credits are prepaid capacity on our AI pipeline: speech recognition,
+				the language model that writes the reply, and the speech synthesis that
+				speaks it. <strong>One credit is one request.</strong> Credits are sold
+				in fixed packs at the prices shown on the website, they never expire,
+				and they are spent only after your monthly free allowance is used up.
+			</p>
+			<p>
+				Credits do not unlock features, raise your monthly free allowance, grant
+				priority, or confer any advantage in Minecraft. Everything the mod does
+				is available without them, and you may instead supply your own OpenAI
+				and ElevenLabs keys under section 4 and use the Service without limit at
+				no charge to us.
+			</p>
+			<p>
+				So that a single request cannot consume unlimited capacity, each request
+				is subject to technical limits on input audio length and spoken reply
+				length. Purchases are processed by Polar, which acts as merchant of
+				record and is the seller for the transaction. Prices shown include VAT.
+				Refund and withdrawal rules are described in the{" "}
 				<Link to="/refunds">Refund and Cancellation Policy</Link>.
 			</p>
 
@@ -132,7 +150,9 @@ function TermsPage() {
 				We may update these Terms by posting a revised version on this page.
 				Continued use after changes take effect constitutes acceptance.
 				Questions: <a href="mailto:joni@pohina.group">joni@pohina.group</a> ·
-				Pöhinä Group Oy.
+				Pöhinä Group Oy, business ID 3419352-5, Finland. Finnish law applies and
+				you may always bring a dispute before the consumer dispute board
+				(kuluttajariitalautakunta) or your local court.
 			</p>
 		</LegalPage>
 	);

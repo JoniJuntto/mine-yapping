@@ -12,21 +12,40 @@ import { user } from "./auth";
 export const appSettings = pgTable("app_settings", {
 	id: text("id").primaryKey().default("global"),
 	monthlyFreeRequests: integer("monthly_free_requests").default(100).notNull(),
-	polarProductId: text("polar_product_id"),
 	updatedAt: timestamp("updated_at")
 		.defaultNow()
 		.$onUpdate(() => new Date())
 		.notNull(),
 });
 
-export const donation = pgTable("donation", {
+/** One Polar order for a credit pack. Primary key is the Polar order id, which is
+ * what makes webhook redelivery idempotent — see onOrderPaid. */
+export const purchase = pgTable("purchase", {
 	id: text("id").primaryKey(),
+	// Nulled rather than cascaded on account deletion: bookkeeping law wants the
+	// order kept for six years, GDPR wants the person unlinked. Both, then.
+	userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
 	customerId: text("customer_id").notNull(),
+	productId: text("product_id").notNull(),
+	credits: integer("credits").notNull(),
 	nickname: text("nickname"),
 	showNickname: boolean("show_nickname").default(false).notNull(),
 	amount: integer("amount").notNull(),
 	currency: text("currency").notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/** Purchased requests. Deliberately not part of the monthly allowance: that resets
+ * every UTC month, and credits people paid for must not evaporate with it. */
+export const userCredit = pgTable("user_credit", {
+	userId: text("user_id")
+		.primaryKey()
+		.references(() => user.id, { onDelete: "cascade" }),
+	balance: integer("balance").default(0).notNull(),
+	updatedAt: timestamp("updated_at")
+		.defaultNow()
+		.$onUpdate(() => new Date())
+		.notNull(),
 });
 
 export const userProviderKey = pgTable("user_provider_key", {
@@ -52,7 +71,7 @@ export const usageEvent = pgTable(
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		successful: boolean("successful").notNull(),
 		billingMode: text("billing_mode")
-			.$type<"free" | "byok">()
+			.$type<"free" | "byok" | "credit">()
 			.default("free")
 			.notNull(),
 		inputType: text("input_type").notNull(),

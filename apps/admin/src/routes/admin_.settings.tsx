@@ -6,7 +6,6 @@ import { requireUser } from "../lib/route-guards";
 
 type Settings = {
 	monthlyFreeRequests: number;
-	polarProductId: string | null;
 };
 export const Route = createFileRoute("/admin_/settings")({
 	beforeLoad: () => requireUser(true),
@@ -29,7 +28,6 @@ function SettingsPage() {
 					method: "PATCH",
 					body: JSON.stringify({
 						monthlyFreeRequests: Number(data.get("monthlyFreeRequests")),
-						polarProductId: String(data.get("polarProductId")),
 					}),
 				}),
 			);
@@ -57,18 +55,11 @@ function SettingsPage() {
 								required
 							/>
 						</label>
-						<label>
-							Polar donation product ID
-							<input
-								name="polarProductId"
-								defaultValue={settings.polarProductId ?? ""}
-								placeholder="Leave blank to disable donations"
-								maxLength={200}
-							/>
-							<small>
-								Use a one-time product. Donations grant no benefits.
-							</small>
-						</label>
+						<p className="text-ink/65 text-sm">
+							Credit packs are configured with the POLAR_CREDIT_PRODUCTS
+							environment variable — prices live in code so that pricing.test.ts
+							can hold them to the cost caps.
+						</p>
 						<button className="button-primary" type="submit">
 							Save settings
 						</button>

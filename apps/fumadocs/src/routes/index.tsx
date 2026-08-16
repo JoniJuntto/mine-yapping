@@ -12,6 +12,11 @@ function Home() {
   return (
     <HomeLayout {...baseOptions()}>
       <div className="flex flex-col flex-1 justify-center px-4 py-16 text-center max-w-2xl mx-auto">
+        <img
+          src="/logo.png"
+          alt="Mine Yapping"
+          className="w-full max-w-md mx-auto mb-8"
+        />
         <h1 className="font-medium text-3xl mb-3">
           Talk to Minecraft mobs with your voice
         </h1>

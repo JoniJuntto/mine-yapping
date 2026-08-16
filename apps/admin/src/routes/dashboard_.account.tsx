@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { AppShell } from "../components/app-shell";
-import { DonationForm } from "../components/donation-form";
+import { type CreditPack, CreditPacks } from "../components/credit-packs";
 import { api } from "../lib/api";
 import { authClient } from "../lib/auth-client";
 import {
@@ -20,7 +20,8 @@ type Key = {
 };
 type Summary = {
 	user: { name: string; email: string; language: Locale };
-	donationsEnabled: boolean;
+	credits: number;
+	packs: CreditPack[];
 	byokConfigured: boolean;
 };
 
@@ -149,14 +150,20 @@ function Account() {
 					</form>
 				</section>
 				<section className="card">
-					<h2>{t("Support Mine Yapping")}</h2>
+					<h2>{t("AI credits")}</h2>
+					<p className="font-black text-3xl">
+						{summary ? summary.credits : "—"}
+					</p>
 					<p>
 						{t(
-							"Donations are optional and never change features or usage limits.",
+							"One credit is one request. Credits never expire and are used only after the monthly free allowance runs out.",
 						)}
 					</p>
-					{summary?.donationsEnabled && (
-						<DonationForm defaultNickname={summary.user.name} />
+					{summary && (
+						<CreditPacks
+							packs={summary.packs}
+							defaultNickname={summary.user.name}
+						/>
 					)}
 				</section>
 				<section className="card lg:col-span-2">

@@ -104,14 +104,21 @@ const fi: Record<string, string> = {
 		"Yhteisten API-kulujen tietoa ei juuri nyt ole saatavilla.",
 	"Keeping this online costs real money":
 		"Palvelun ylläpito maksaa oikeaa rahaa",
-	"That’s what I’ve spent on shared API costs this month so nobody has to pay to play. If you can, please consider donating.":
-		"Sen verran olen käyttänyt yhteisiin API-kuluihin tässä kuussa, jotta kenenkään ei tarvitse maksaa pelaamisesta. Jos pystyt, harkitse lahjoittamista.",
-	"Support it": "Tue",
-	"Donations are optional and never unlock features or increase usage.":
-		"Lahjoitukset ovat vapaaehtoisia eivätkä avaa ominaisuuksia tai lisää käyttöä.",
+	"That’s what I’ve spent on shared API costs this month so nobody has to pay to play. Credits cover the requests that go past the free allowance.":
+		"Sen verran olen käyttänyt yhteisiin API-kuluihin tässä kuussa, jotta kenenkään ei tarvitse maksaa pelaamisesta. Krediitit kattavat ilmaiskiintiön ylittävät pyynnöt.",
+	"Need more requests?": "Tarvitsetko lisää pyyntöjä?",
+	"Buy AI credits when the free allowance runs out. One credit is one request, they never expire, and they unlock nothing — the mod is free either way.":
+		"Osta AI-krediittejä, kun ilmaiskiintiö loppuu. Yksi krediitti on yksi pyyntö, ne eivät vanhene eivätkä avaa mitään — modi on joka tapauksessa ilmainen.",
 	"Thank you": "Kiitos",
-	"Our donors": "Lahjoittajamme",
-	"Be the first donor.": "Ole ensimmäinen lahjoittaja.",
+	"Our supporters": "Tukijamme",
+	"Be the first supporter.": "Ole ensimmäinen tukija.",
+	requests: "pyyntöä",
+	"AI credits are not on sale right now.":
+		"AI-krediittejä ei ole juuri nyt myynnissä.",
+	"AI credits": "AI-krediitit",
+	"Credits left": "Krediittejä jäljellä",
+	"One credit is one request. Credits never expire and are used only after the monthly free allowance runs out.":
+		"Yksi krediitti on yksi pyyntö. Krediitit eivät vanhene, ja ne kuluvat vasta kun kuukausittainen ilmaiskiintiö on käytetty.",
 	Dashboard: "Hallintapaneeli",
 	Account: "Tili",
 	"Connect Minecraft": "Yhdistä Minecraft",
@@ -149,8 +156,7 @@ const fi: Record<string, string> = {
 	"This reset link is invalid or expired.":
 		"Palautuslinkki on virheellinen tai vanhentunut.",
 	Nickname: "Nimimerkki",
-	"Show nickname in donations list": "Näytä nimimerkki lahjoittajalistalla",
-	"Donate with Polar": "Lahjoita Polarilla",
+	"Show nickname in the supporters list": "Näytä nimimerkki tukijalistalla",
 	"Privacy Policy": "Tietosuojaseloste",
 	"Refund Policy": "Hyvityskäytäntö",
 	"Requests this month": "Pyyntöjä tässä kuussa",
@@ -160,9 +166,7 @@ const fi: Record<string, string> = {
 	"Profile and connection": "Profiili ja yhteys",
 	Profile: "Profiili",
 	"Save profile": "Tallenna profiili",
-	"Support Mine Yapping": "Tue Mine Yappingia",
-	"Donations are optional and never change features or usage limits.":
-		"Lahjoitukset ovat vapaaehtoisia eivätkä muuta ominaisuuksia tai käyttörajoja.",
+	"Buy AI credits": "Osta AI-krediittejä",
 	"Bring your own provider keys": "Käytä omia palveluntarjoaja-avaimia",
 	"Use your own OpenAI and ElevenLabs accounts instead of the monthly free allowance.":
 		"Käytä omia OpenAI- ja ElevenLabs-tilejä kuukausittaisen ilmaiskäytön sijaan.",
@@ -203,7 +207,7 @@ const fi: Record<string, string> = {
 	"Could not send reset email":
 		"Palautussähköpostin lähettäminen ei onnistunut",
 	"Could not resend email": "Sähköpostin lähettäminen uudelleen ei onnistunut",
-	"Could not start donation checkout": "Lahjoituksen aloittaminen ei onnistunut",
+	"Could not start checkout": "Maksun aloittaminen ei onnistunut",
 	"If that account exists, a reset link is on its way.":
 		"Jos tili on olemassa, palautuslinkki on matkalla.",
 	"Provider keys saved.": "Palveluntarjoaja-avaimet tallennettu.",

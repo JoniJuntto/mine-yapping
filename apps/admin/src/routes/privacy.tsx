@@ -18,7 +18,7 @@ function PrivacyPage() {
 				“Service”).
 			</p>
 			<p>
-				Controller: Pöhinä Group Oy. Contact:{" "}
+				Controller: Pöhinä Group Oy (business ID 3419352-5, Finland). Contact:{" "}
 				<a href="mailto:joni@pohina.group">joni@pohina.group</a>.
 			</p>
 
@@ -52,8 +52,9 @@ function PrivacyPage() {
 					<strong>Content you create:</strong> mob personalities and prompts.
 				</li>
 				<li>
-					<strong>Donation data:</strong> Polar customer/order identifiers,
-					amount, currency, and optional public nickname preference.
+					<strong>Purchase data:</strong> Polar customer/order identifiers, the
+					credit pack bought, amount, currency, and optional public nickname
+					preference.
 				</li>
 			</ul>
 
@@ -94,7 +95,7 @@ function PrivacyPage() {
 				<li>to provide accounts, authentication, and the Minecraft mod API;</li>
 				<li>to run speech and dialogue features through AI providers;</li>
 				<li>to enforce monthly allowances and estimate shared API cost;</li>
-				<li>to process optional donations via Polar;</li>
+				<li>to sell and grant AI credits via Polar;</li>
 				<li>to secure the Service, prevent abuse, and provide support;</li>
 				<li>to meet legal obligations where applicable.</li>
 			</ul>
@@ -122,8 +123,9 @@ function PrivacyPage() {
 					<strong>ElevenLabs</strong> — text-to-speech and voice metadata;
 				</li>
 				<li>
-					<strong>Polar</strong> — donation checkout, receipts, and customer
-					records (a Polar customer may be created when you sign up);
+					<strong>Polar</strong> — merchant of record for credit purchases:
+					checkout, VAT, receipts, and customer records (a Polar customer may be
+					created when you sign up);
 				</li>
 				<li>
 					<strong>Twitch</strong> — if you choose Twitch sign-in;
@@ -155,10 +157,11 @@ function PrivacyPage() {
 					server process (and is capped).
 				</li>
 				<li>
-					<strong>Donation records</strong> (order identifiers, amounts,
-					optional nicknames) may be retained for accounting and public donor
-					listing even if an account is later removed, and corresponding records
-					also exist at Polar.
+					<strong>Purchase records</strong> (order identifiers, amounts,
+					optional nicknames) are retained for <strong>six years</strong> from
+					the end of the accounting period, as Finnish bookkeeping law requires,
+					even if an account is later removed. Corresponding records also exist
+					at Polar.
 				</li>
 				<li>
 					<strong>Database backups</strong> follow our host’s backup retention
@@ -187,7 +190,7 @@ function PrivacyPage() {
 				Self-service account deletion is not yet available in the product UI.
 				When you request deletion, we will delete or anonymize account data we
 				control as described above, except where we must retain records (for
-				example donation accounting) or where data lives with a processor you
+				example purchase accounting) or where data lives with a processor you
 				also have a relationship with (Polar, Twitch, or your own AI provider
 				accounts).
 			</p>

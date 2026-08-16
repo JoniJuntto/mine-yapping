@@ -15,8 +15,8 @@ export function LegalPage({
 		<>
 			<header className="border-black/10 border-b bg-panel/90">
 				<div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-4">
-					<Link to="/" className="font-black text-accent text-xl">
-						Mine Yapping
+					<Link to="/">
+						<img src="/logo.png" alt="Mine Yapping" className="h-10 w-auto" />
 					</Link>
 					<nav aria-label="Legal" className="flex flex-wrap gap-3 text-sm">
 						<Link

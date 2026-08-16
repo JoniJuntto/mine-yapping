@@ -6,6 +6,7 @@
 	"description": "Talk to Minecraft mobs with your voice. Not an official Minecraft product; not approved by or associated with Mojang or Microsoft.",
 	"authors": ["joni"],
 	"license": "MIT",
+	"icon": "assets/mineyapping/icon.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": ["dev.mineyapping.MineYappingClient"]

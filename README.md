@@ -60,14 +60,14 @@ on vanilla and modded multiplayer servers with only you having it installed.
   defaults. Every ownership and role check is enforced by the server.
 - **Usage and quotas** — successful and failed requests are recorded without audio
   or transcripts. Twitch accounts receive 1.5× the base monthly limit; optional
-  Polar donations grant no features or additional usage.
+  Polar AI credits buy requests beyond the free allowance and grant no features.
 - **Env validation** at boot via `@t3-oss/env-core` + Zod — the process refuses to
   start with missing or malformed config rather than failing at request time.
 
 ### Platform
 
 - **Auth** — Better-Auth with email/password, Drizzle adapter on PostgreSQL,
-  admin roles, hashed API keys, and optional Polar donations.
+  admin roles, hashed API keys, and optional Polar credit packs.
 - **Database** — Drizzle ORM, PostgreSQL, schema-first with push/generate/migrate.
 - **Docs site** — Fumadocs (TanStack Start + Vite) in `apps/fumadocs`.
 - **Web app** — landing, signup/login, user dashboard, billing/API-key account page,

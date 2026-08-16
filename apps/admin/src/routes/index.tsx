@@ -1,32 +1,37 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LegalFooter } from "../components/app-shell";
-import { DonationForm } from "../components/donation-form";
+import { type CreditPack, CreditPacks } from "../components/credit-packs";
 import { api } from "../lib/api";
 import { getLocale, localeSearch, translate } from "../lib/i18n";
 import { MOD_DOWNLOAD_URL } from "../lib/mod-download";
 
-type Donor = { nickname: string; amount: number; currency: string };
+type Supporter = { nickname: string; credits: number };
 
 export const Route = createFileRoute("/")({
 	loader: () =>
 		Promise.all([
-			api<Donor[]>("/donations").catch(() => []),
+			api<Supporter[]>("/supporters").catch(() => []),
 			api<{ estimatedCostUsd: number }>("/stats").catch(() => ({
 				estimatedCostUsd: null,
 			})),
-		]).then(([donors, stats]) => ({ donors, ...stats })),
+			api<{ packs: CreditPack[] }>("/packs").catch(() => ({ packs: [] })),
+		]).then(([supporters, stats, { packs }]) => ({
+			supporters,
+			packs,
+			...stats,
+		})),
 	component: Landing,
 });
 
 function Landing() {
-	const { donors, estimatedCostUsd } = Route.useLoaderData();
+	const { supporters, packs, estimatedCostUsd } = Route.useLoaderData();
 	const locale = getLocale(Route.useSearch());
 	const t = (text: string) => translate(locale, text);
 	return (
 		<>
 			<main>
 				<nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
-					<strong className="text-accent text-xl">Mine Yapping</strong>
+					<img src="/logo.png" alt="Mine Yapping" className="h-10 w-auto" />
 					<div className="flex gap-2">
 						<a href={MOD_DOWNLOAD_URL} className="button-secondary">
 							{t("Download mod")}
@@ -138,13 +143,13 @@ function Landing() {
 							</p>
 						</article>
 						<article className="card border-accent/40">
-							<h3 className="text-2xl">{t("Support it")}</h3>
+							<h3 className="text-2xl">{t("Need more requests?")}</h3>
 							<p className="text-ink/65">
 								{t(
-									"Donations are optional and never unlock features or increase usage.",
+									"Buy AI credits when the free allowance runs out. One credit is one request, they never expire, and they unlock nothing — the mod is free either way.",
 								)}
 							</p>
-							<DonationForm />
+							<CreditPacks packs={packs} />
 						</article>
 					</div>
 					<article className="card mt-5 border-accent/40 text-left">
@@ -163,7 +168,7 @@ function Landing() {
 							{estimatedCostUsd === null
 								? t("Shared API spend is temporarily unavailable.")
 								: t(
-										"That’s what I’ve spent on shared API costs this month so nobody has to pay to play. If you can, please consider donating.",
+										"That’s what I’ve spent on shared API costs this month so nobody has to pay to play. Credits cover the requests that go past the free allowance.",
 									)}
 						</p>
 					</article>
@@ -171,26 +176,24 @@ function Landing() {
 				<section className="border-black/10 border-t bg-panel">
 					<div className="mx-auto max-w-4xl px-5 py-16">
 						<p className="eyebrow">{t("Thank you")}</p>
-						<h2 className="text-4xl">{t("Our donors")}</h2>
-						{donors.length ? (
+						<h2 className="text-4xl">{t("Our supporters")}</h2>
+						{supporters.length ? (
 							<ul className="grid list-none gap-3 p-0 sm:grid-cols-2">
-								{donors.map((donor) => (
+								{supporters.map((supporter) => (
 									<li
-										key={`${donor.nickname}-${donor.currency}-${donor.amount}`}
+										key={`${supporter.nickname}-${supporter.credits}`}
 										className="card flex items-center justify-between gap-4"
 									>
-										<span className="font-semibold">{donor.nickname}</span>
+										<span className="font-semibold">{supporter.nickname}</span>
 										<span>
-											{new Intl.NumberFormat(locale, {
-												style: "currency",
-												currency: donor.currency,
-											}).format(donor.amount / 100)}
+											{new Intl.NumberFormat(locale).format(supporter.credits)}{" "}
+											{t("requests")}
 										</span>
 									</li>
 								))}
 							</ul>
 						) : (
-							<p className="text-ink/65">{t("Be the first donor.")}</p>
+							<p className="text-ink/65">{t("Be the first supporter.")}</p>
 						)}
 					</div>
 				</section>

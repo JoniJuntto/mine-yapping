@@ -1,6 +1,11 @@
 import { mobPersona, mobPrompt } from "@mine-yapping/db/schema/prompts";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
-import { type Language, languageName } from "./rules";
+import {
+	type Language,
+	languageName,
+	MAX_REPLY_TOKENS,
+	MAX_TTS_CHARACTERS,
+} from "./rules";
 
 type Turn = { player: string; mob: string };
 
@@ -268,6 +273,13 @@ async function* sseEvents(body: ReadableStream<Uint8Array>) {
 	}
 }
 
+/** Trims a sentence to what is left of the per-request speech budget. Speech is
+ * ~85% of what a request costs and a credit buys exactly one request, so the spoken
+ * length needs a hard ceiling — a personality prompt asking for long answers would
+ * otherwise cost several times what the request was sold for. */
+export const withinSpeechBudget = (spoken: number, sentence: string) =>
+	sentence.slice(0, Math.max(0, MAX_TTS_CHARACTERS - spoken));
+
 async function generateReply(
 	transcript: string,
 	context: MobContext,
@@ -299,7 +311,7 @@ async function generateReply(
 			],
 			reasoning: { effort: "none" },
 			text: { format: { type: "text" }, verbosity: "low" },
-			max_output_tokens: 120,
+			max_output_tokens: MAX_REPLY_TOKENS,
 			// ponytail: OpenAI caps prompt_cache_key at 64 chars; truncating only costs cache locality
 			prompt_cache_key: historyKey.slice(0, 64),
 			store: false,
@@ -310,6 +322,13 @@ async function generateReply(
 
 	let reply = "";
 	let pending = "";
+	let spoken = 0;
+	const speak = async (sentence: string) => {
+		const text = withinSpeechBudget(spoken, sentence);
+		if (!text) return;
+		spoken += text.length;
+		await onSentence?.(text);
+	};
 	let usage: ReplyUsage = { inputTokens: 0, outputTokens: 0 };
 	for await (const event of sseEvents(response.body)) {
 		if (event.type === "response.output_text.delta") {
@@ -318,7 +337,7 @@ async function generateReply(
 			pending += delta;
 			let complete = shiftCompleteSentence(pending);
 			while (complete) {
-				if (complete.sentence) await onSentence?.(complete.sentence);
+				if (complete.sentence) await speak(complete.sentence);
 				pending = complete.rest;
 				complete = shiftCompleteSentence(pending);
 			}
@@ -338,8 +357,9 @@ async function generateReply(
 			);
 		}
 	}
-	if (pending.trim()) await onSentence?.(pending.trim());
-	reply = reply.trim();
+	if (pending.trim()) await speak(pending.trim());
+	// Truncated too, so the billed ttsCharacters match what was actually spoken.
+	reply = reply.trim().slice(0, MAX_TTS_CHARACTERS).trim();
 	if (!reply) throw new Error("OpenAI returned no text");
 	histories.set(
 		historyKey,

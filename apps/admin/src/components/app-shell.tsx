@@ -21,8 +21,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 		<>
 			<header className="border-black/10 border-b bg-panel/90">
 				<div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-					<Link to="/" search={true} className="font-black text-accent text-xl">
-						Mine Yapping
+					<Link to="/" search={true}>
+						<img src="/logo.png" alt="Mine Yapping" className="h-10 w-auto" />
 					</Link>
 					<nav
 						aria-label={t("Account")}

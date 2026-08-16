@@ -1,7 +1,7 @@
 import { db } from "@mine-yapping/db";
-import { appSettings, donation, usageEvent } from "@mine-yapping/db/schema/app";
+import { appSettings, purchase, usageEvent } from "@mine-yapping/db/schema/app";
 import { apikey, user } from "@mine-yapping/db/schema/auth";
-import { count, desc, eq, ilike, or, sql, sum } from "drizzle-orm";
+import { count, desc, eq, ilike, isNotNull, or, sql, sum } from "drizzle-orm";
 import { Elysia, t } from "elysia";
 import {
 	getApiKeyUser,
@@ -14,9 +14,10 @@ import {
 	hasProviderKeys,
 	saveProviderKeys,
 } from "./provider-key";
-import { language } from "./rules";
+import { CREDIT_PACKS, language } from "./rules";
 import {
 	clearSettingsCache,
+	creditBalance,
 	getSettings,
 	globalUsage,
 	monthlyRequestLimitFor,
@@ -41,12 +42,12 @@ const sessionApi = new Elysia({ prefix: "/api" })
 		return { currentUser: session.user };
 	})
 	.get("/me/summary", async ({ currentUser }) => {
-		const [monthlyRequestLimit, usage, byokConfigured, settings, language] =
+		const [monthlyRequestLimit, usage, byokConfigured, credits, language] =
 			await Promise.all([
 				monthlyRequestLimitFor(currentUser.id),
 				usageFor(currentUser.id),
 				hasProviderKeys(currentUser.id),
-				getSettings(),
+				creditBalance(currentUser.id),
 				languageFor(currentUser.id),
 			]);
 		return {
@@ -54,7 +55,8 @@ const sessionApi = new Elysia({ prefix: "/api" })
 			usage,
 			byokConfigured,
 			monthlyRequestLimit,
-			donationsEnabled: !!settings.polarProductId,
+			credits,
+			packs: CREDIT_PACKS,
 		};
 	})
 	.patch(
@@ -118,26 +120,27 @@ const publicApi = new Elysia({ prefix: "/api" })
 	.get("/stats", async () => ({
 		estimatedCostUsd: (await globalUsage()).free.estimatedCostUsd,
 	}))
-	.get("/donations", async () => {
-		const donors = await db
+	.get("/packs", () => ({ packs: CREDIT_PACKS }))
+	.get("/supporters", async () => {
+		const supporters = await db
 			.select({
-				customerId: donation.customerId,
+				userId: purchase.userId,
 				nickname: sql<
 					string | null
-				>`(array_agg(${donation.nickname} order by ${donation.createdAt} desc))[1]`,
-				showNickname: sql<boolean>`(array_agg(${donation.showNickname} order by ${donation.createdAt} desc))[1]`,
-				amount: sum(donation.amount).mapWith(Number),
-				currency: donation.currency,
+				>`(array_agg(${purchase.nickname} order by ${purchase.createdAt} desc))[1]`,
+				showNickname: sql<boolean>`(array_agg(${purchase.showNickname} order by ${purchase.createdAt} desc))[1]`,
+				credits: sum(purchase.credits).mapWith(Number),
 			})
-			.from(donation)
-			.groupBy(donation.customerId, donation.currency)
-			.orderBy(desc(sum(donation.amount)));
-		return donors.map(
-			({ customerId: _, nickname, showNickname, ...donor }) => ({
-				...donor,
-				nickname: showNickname && nickname ? nickname : "Anonymous",
-			}),
-		);
+			.from(purchase)
+			// Deleted accounts keep their order row for accounting but leave the list.
+			.where(isNotNull(purchase.userId))
+			.groupBy(purchase.userId)
+			.orderBy(desc(sum(purchase.credits)));
+		// Amounts paid stay private — the list is a thank-you, not a receipt.
+		return supporters.map(({ userId: _, nickname, showNickname, credits }) => ({
+			credits,
+			nickname: showNickname && nickname ? nickname : "Anonymous",
+		}));
 	});
 
 const adminApi = new Elysia({ prefix: "/api/admin" })
@@ -215,11 +218,7 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 			await getSettings();
 			const [settings] = await db
 				.update(appSettings)
-				.set({
-					...body,
-					polarProductId: body.polarProductId?.trim() || null,
-					updatedAt: new Date(),
-				})
+				.set({ ...body, updatedAt: new Date() })
 				.where(eq(appSettings.id, "global"))
 				.returning();
 			clearSettingsCache();
@@ -228,7 +227,6 @@ const adminApi = new Elysia({ prefix: "/api/admin" })
 		{
 			body: t.Object({
 				monthlyFreeRequests: t.Integer({ minimum: 0, maximum: 1_000_000 }),
-				polarProductId: t.Optional(t.String({ maxLength: 200 })),
 			}),
 		},
 	);

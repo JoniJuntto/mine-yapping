@@ -8,7 +8,7 @@ import { converse } from "./conversation";
 import { promptsApi } from "./prompts";
 import { getProviderKeys } from "./provider-key";
 import { RealtimeConversation } from "./realtime";
-import { language, quotaKey } from "./rules";
+import { language, MAX_AUDIO_BYTES, MAX_AUDIO_MS, quotaKey } from "./rules";
 import { finalizeUsage, reserveUsage } from "./usage";
 
 const realtimeSessions = new Map<
@@ -60,8 +60,13 @@ new Elysia()
 			const input = body.audio ?? text;
 			if (!input || (body.audio && text))
 				return status(400, "Provide either audio or text");
-			if (body.audio && body.audio.size > 5 * 1024 * 1024)
-				return status(413, "Audio must be under 5 MB");
+			// Transcription is billed per minute, so the old 5 MB ceiling was ~109 s of
+			// audio — seven times a normal request, on one credit. See MAX_AUDIO_MS.
+			if (body.audio && body.audio.size > MAX_AUDIO_BYTES)
+				return status(
+					413,
+					`Audio must be under ${MAX_AUDIO_MS / 1000} seconds`,
+				);
 			const inputType = body.audio ? "audio" : "text";
 			let byokKeys: Awaited<ReturnType<typeof getProviderKeys>>;
 			try {
@@ -88,7 +93,10 @@ new Elysia()
 				return status(503, "Could not verify usage limit");
 			}
 			if (!reservationId) {
-				return status(402, "Monthly free usage limit reached");
+				return status(
+					402,
+					"Monthly free usage limit reached and no AI credits left",
+				);
 			}
 			try {
 				const result = await converse(
