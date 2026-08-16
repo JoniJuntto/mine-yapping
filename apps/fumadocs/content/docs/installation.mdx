@@ -1,0 +1,159 @@
+---
+title: Installation
+description: Full install guide — requirements, Fabric, the mods folder on every OS, updating, and uninstalling.
+icon: Download
+---
+
+This is the detailed version of the [Quickstart](/docs/quickstart). Follow it if you
+have never installed a Minecraft mod, or if the quick path did not work.
+
+## Requirements
+
+| | Requirement |
+| --- | --- |
+| Game | Minecraft: **Java Edition 26.1+** (tested on **26.1.2**) |
+| Loader | **Fabric Loader 0.19.3** or newer |
+| Library | **Fabric API** matching your Minecraft version (`0.155.2+26.1.2` for 26.1.2) |
+| Java | **25+** — the Fabric profile uses the runtime the launcher ships, so you normally do not install anything |
+| OS | Windows, macOS, or Linux **desktop** |
+| Hardware | A working microphone and audio output |
+| Account | A free account on [mine-yapper.com](https://mine-yapper.com) |
+
+<Callout type="error" title="Not supported">
+  **Bedrock Edition** (Windows Store, consoles, mobile) cannot run Fabric mods.
+  **Android / PojavLauncher** is also unsupported: microphone capture uses
+  `javax.sound.sampled`, which has no working mixer on the Android OpenJDK builds those
+  launchers ship. **Forge and NeoForge** are not supported either — this is a Fabric mod.
+</Callout>
+
+## 1. Install Fabric Loader
+
+<Steps>
+
+<Step>
+
+### Run the installer
+
+Download the [official Fabric installer](https://fabricmc.net/use/installer/) and run it.
+Choose Minecraft version **26.1.2**, leave the loader version at the latest, and click
+**Install**.
+
+</Step>
+
+<Step>
+
+### Launch the profile once
+
+Open the Minecraft Launcher, select the new **fabric-loader-26.1.2** profile, and start
+the game once. This creates the folders the mod needs. Then close Minecraft.
+
+</Step>
+
+</Steps>
+
+## 2. Add Fabric API
+
+Fabric API is a separate mod that Mine Yapping depends on. Download the jar matching your
+Minecraft version from [fabricmc.net/develop](https://fabricmc.net/develop/) or Fabric
+API's official Modrinth page. For Minecraft 26.1.2 that is `fabric-api-0.155.2+26.1.2.jar`
+or newer.
+
+<Callout>
+  If Fabric API is missing, the game shows a "requires fabric-api" error screen at startup
+  and does not launch.
+</Callout>
+
+## 3. Download the mod
+
+Get `mineyapping.jar` from GitHub Releases:
+
+```text
+https://github.com/JoniJuntto/mine-yapping/releases/latest/download/mineyapping.jar
+```
+
+That link always points at the newest release. The release page also has a versioned
+copy (`mineyapping-<version>.jar`) and SHA-256 checksums.
+
+<Callout type="warn">
+  Download the **jar**, not the "Source code (zip/tar.gz)" archive — the source archive
+  is not installable. Only install jars from this repository's releases or from the
+  Mine Yapping website.
+</Callout>
+
+## 4. Put both jars in `mods`
+
+<Tabs items={["Windows", "macOS", "Linux"]}>
+  <Tab>
+    Press <kbd>Win</kbd> + <kbd>R</kbd>, paste `%APPDATA%\.minecraft` and press Enter.
+
+    ```text
+    %APPDATA%\.minecraft\mods
+    ```
+  </Tab>
+  <Tab>
+    In Finder press <kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>G</kbd> and paste the path.
+
+    ```text
+    ~/Library/Application Support/minecraft/mods
+    ```
+  </Tab>
+  <Tab>
+    ```text
+    ~/.minecraft/mods
+    ```
+  </Tab>
+</Tabs>
+
+Rules:
+
+- Create the `mods` folder if it does not exist.
+- The jars go **directly** in `mods` — not in a subfolder, not zipped.
+- Delete any older `mineyapping-*.jar` so only one version is installed.
+- Using MultiMC / Prism / CurseForge / Modrinth App? Use that instance's own `mods`
+  folder instead of the default one above.
+
+## 5. Verify it loaded
+
+Start Minecraft with the Fabric profile. On the title screen, **Mods** should list
+**MineYapping**. If your OS asks for microphone permission, allow it.
+
+<Callout type="info" title="macOS microphone permission">
+  macOS only prompts once. If you missed it, enable it under
+  **System Settings → Privacy & Security → Microphone** for your launcher (or for Java),
+  then restart Minecraft.
+</Callout>
+
+## 6. Connect your account
+
+Create a key at **Dashboard → Account → Minecraft API keys**, join a world, and run:
+
+```text
+/login my_YOUR_KEY_HERE
+```
+
+Full details, including limits and revoking keys, are in
+[Account & API key](/docs/account).
+
+## Updating
+
+1. Download the new `mineyapping.jar`.
+2. Delete the old jar from `mods`.
+3. Drop the new one in.
+
+Your `config/mine-yapping.json` — and therefore your login — is left alone, so you do not
+need to run `/login` again.
+
+## Uninstalling
+
+Delete `mineyapping.jar` from `mods`. To remove your saved key as well, delete
+`config/mine-yapping.json`, and revoke the key under **Dashboard → Account**.
+
+## Playing on servers
+
+Mine Yapping is **client-only**. It talks to the Mine Yapping backend over HTTPS, never
+to the Minecraft server, so:
+
+- It works on vanilla and modded multiplayer servers with only you having it installed.
+- Nobody else sees the transcript or hears the replies.
+- Servers with strict anti-cheat may still ban client mods by policy — check the server
+  rules. The mod does not modify gameplay, movement, or rendering.

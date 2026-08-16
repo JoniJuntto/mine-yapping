@@ -1,0 +1,100 @@
+---
+title: Configuration
+description: The mine-yapping.json config file, the push-to-talk keybind, and pointing the mod at a different backend.
+icon: Settings
+---
+
+## The config file
+
+The mod keeps its settings in `mine-yapping.json` inside your Minecraft **config**
+folder. It is created with defaults the first time the game starts with the mod
+installed.
+
+<Tabs items={["Windows", "macOS", "Linux"]}>
+  <Tab>
+    ```text
+    %APPDATA%\.minecraft\config\mine-yapping.json
+    ```
+  </Tab>
+  <Tab>
+    ```text
+    ~/Library/Application Support/minecraft/config/mine-yapping.json
+    ```
+  </Tab>
+  <Tab>
+    ```text
+    ~/.minecraft/config/mine-yapping.json
+    ```
+  </Tab>
+</Tabs>
+
+```json title="mine-yapping.json"
+{
+  "apiKey": "",
+  "serverUrl": "https://mine-yapper.com/api/converse",
+  "speechChance": 0.5
+}
+```
+
+<Callout type="warn">
+  Edit it with Minecraft closed — the file is read at startup and rewritten by `/login`,
+  so changes made while the game is running are overwritten.
+</Callout>
+
+### `apiKey`
+
+Your Minecraft API key from **Dashboard → Account**. Normally you never edit this by
+hand: running `/login <token>` in game writes it for you. Treat the file as a secret.
+
+### `serverUrl`
+
+The conversation endpoint. Defaults to the hosted service:
+
+```text
+https://mine-yapper.com/api/converse
+```
+
+Point it at your own backend if you [self-host](/docs/self-hosting):
+
+```json
+{ "serverUrl": "http://localhost:31415/api/converse" }
+```
+
+The mod derives the WebSocket URL (`…/api/converse/stream`) and the health/language URLs
+from this value, so only this one entry needs changing.
+
+### `speechChance`
+
+How likely a nearby mob is to start a conversation on its own. The mod checks every
+**30 seconds** and rolls against this number.
+
+| Value | Effect |
+| --- | --- |
+| `0` | Ambient chatter off — mobs only respond to you |
+| `0.5` | Default — roughly one spontaneous conversation every minute when mobs are around |
+| `1` | A nearby mob speaks on every 30-second check |
+
+Values are clamped to `0`–`1`. Anything malformed falls back to `0.5`.
+
+<Callout>
+  Ambient chatter uses your monthly allowance. At `0.5` a long session can burn through
+  100 requests without you saying a word — set it lower if you are rationing.
+</Callout>
+
+## Keybind
+
+Push-to-talk is **V** by default. Rebind it in
+**Options → Controls → Key Binds → MineYapping → Push to Talk**, like any vanilla
+keybind. There is nothing to change in the config file.
+
+## Language
+
+The mod's chat messages and the mob replies follow your **dashboard** language setting,
+not Minecraft's. Finnish is the default; switch to English on the website. The mod
+re-checks at most every 5 minutes, so no restart is needed.
+
+## Audio devices
+
+There is no device picker. The mod uses your operating system's **default** input and
+output devices, at 24 kHz. Change the default in your OS sound settings and restart
+Minecraft.

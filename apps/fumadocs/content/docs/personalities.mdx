@@ -1,0 +1,96 @@
+---
+title: Personalities
+description: Write your own system prompts so a creeper acts like a creeper — and understand how a mob gets assigned one.
+icon: Drama
+---
+
+A **personality** is a system prompt attached to a mob type. Create them under
+**Dashboard → Personalities**. They are yours: only you see them, and they override the
+built-in defaults for your own conversations.
+
+## Creating one
+
+| Field | What it does |
+| --- | --- |
+| **Entity type** | The mob this applies to, e.g. `minecraft:cow`. Pick **All entities (fallback)** — `*` — to cover everything else. |
+| **Label** | A name for you, so you can tell your prompts apart. Max 100 characters. |
+| **System prompt** | The instructions the mob follows. Max 10 000 characters. |
+| **Enabled** | Only enabled prompts are ever picked. |
+
+### Placeholders
+
+These are substituted before the prompt is sent:
+
+| Placeholder | Example |
+| --- | --- |
+| `{entityName}` | `Cow`, or a custom name tag |
+| `{entityType}` | `minecraft:cow` |
+| `{playerName}` | your in-game name |
+| `{dimension}` | `minecraft:overworld` |
+| `{health}` | `10.0/10.0` |
+
+An unknown placeholder resolves to an empty string.
+
+### Example
+
+```text
+You are {entityName}, a deeply anxious Minecraft {entityType} in {dimension}.
+You are at {health} health and you mention it far too often.
+Answer {playerName} in at most two short sentences. Never break character.
+```
+
+The built-in default, for reference:
+
+```text
+You are {entityName}, a Minecraft {entityType}. Reply in character in at most two
+short sentences. Use the entity type to infer a distinct personality and speech style.
+```
+
+<Callout>
+  Keep replies short. The prompt is what keeps mobs from monologuing — long replies cost
+  more speech characters and take longer to start playing.
+</Callout>
+
+## How a mob picks its personality
+
+The first time you talk to a specific mob, the backend picks a prompt using the first
+tier that has any enabled entries:
+
+<Steps>
+  <Step>Your prompts for that **exact entity type**</Step>
+  <Step>Your prompts for `*`</Step>
+  <Step>Global (admin) prompts for that **exact entity type**</Step>
+  <Step>Global prompts for `*`</Step>
+  <Step>The built-in default prompt</Step>
+</Steps>
+
+Within the winning tier, one prompt is chosen **at random** — so if you write three
+different cow personalities, cows in your world will be a mix of all three.
+
+A random ElevenLabs voice is assigned at the same time.
+
+## Stickiness
+
+The chosen prompt and voice are stored against the mob's UUID in the database, so:
+
+- The same cow keeps the same personality and voice **across restarts**.
+- Adding a new prompt does not re-roll mobs you have already talked to.
+- **Deleting** a personality re-rolls every mob that was using it. The dashboard warns
+  you before deleting for this reason.
+- Disabling a prompt stops it being assigned to *new* mobs; mobs already holding it keep
+  it until it is deleted.
+
+## Memory vs personality
+
+Two different things, easy to mix up:
+
+| | Where it lives | Survives a backend restart |
+| --- | --- | --- |
+| Personality + voice | Database, keyed by entity UUID | Yes |
+| Conversation history (last 4 turns) | Server memory, capped at 1000 mobs | No |
+
+## Global personalities
+
+Admins can publish global prompts that apply to everyone who has not written their own
+for that mob type (**Admin → Personalities**). Your own prompts always win over global
+ones.

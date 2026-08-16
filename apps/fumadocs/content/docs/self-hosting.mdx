@@ -1,0 +1,222 @@
+---
+title: Self-hosting & development
+description: Run the backend yourself, build the mod from source, and point the mod at your own server.
+icon: Server
+---
+
+Everything is in one repository:
+[github.com/JoniJuntto/mine-yapping](https://github.com/JoniJuntto/mine-yapping).
+
+```
+mine-yapping/
+├── apps/
+│   ├── server/       # Elysia API — conversation endpoint + auth
+│   ├── admin/        # Web app: landing, dashboard, admin pages
+│   └── fumadocs/     # This documentation site
+├── packages/         # auth, db, env, shared config
+├── minecraft-mod/    # Fabric client mod (Java/Gradle, not in the Bun workspace)
+└── docker-compose.yml
+```
+
+You need [Bun](https://bun.sh), PostgreSQL, and — for the mod — nothing but the Gradle
+wrapper, which downloads its own JDK 25.
+
+## Backend
+
+<Steps>
+
+<Step>
+
+### Install and configure
+
+```bash
+bun install
+```
+
+Create `apps/server/.env`. **All** of these are required — the process refuses to start
+if any is missing or malformed, rather than failing later at request time:
+
+| Variable | Notes |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `BETTER_AUTH_SECRET` | min. 32 characters |
+| `BETTER_AUTH_URL` | e.g. `http://localhost:31415` |
+| `RESEND_API_KEY` | verification and password-reset email |
+| `AUTH_EMAIL_FROM` | verified sender, e.g. `Mine Yapping <auth@example.com>` |
+| `TWITCH_CLIENT_ID` | Twitch application client ID |
+| `TWITCH_CLIENT_SECRET` | Twitch application client secret |
+| `POLAR_ACCESS_TOKEN` | any non-empty string works locally |
+| `POLAR_WEBHOOK_SECRET` | Polar webhook signing secret |
+| `POLAR_SUCCESS_URL` | valid URL |
+| `POLAR_SERVER` | optional: `sandbox` (default) or `production` |
+| `CORS_ORIGIN` | valid URL, e.g. `http://localhost:4001` |
+| `OPENAI_API_KEY` | required for `/api/converse` |
+| `ELEVENLABS_API_KEY` | required for reply speech |
+| `DISABLE_SIGN_UP` | optional; `true` for an invite-only setup |
+| `NODE_ENV` | optional, defaults to `development` |
+
+Set `SKIP_ENV_VALIDATION=1` to bypass validation temporarily (e.g. to run only tests).
+
+Register `${BETTER_AUTH_URL}/api/auth/callback/twitch` as the OAuth redirect URL for your
+Twitch application.
+
+</Step>
+
+<Step>
+
+### Migrate the database
+
+```bash
+bun run db:migrate
+```
+
+</Step>
+
+<Step>
+
+### Run it
+
+```bash
+bun run dev:server     # API on http://localhost:31415
+bun run dev:admin      # web app on http://localhost:4001
+bun run dev            # everything
+```
+
+```bash
+curl http://localhost:31415/
+# → OK
+```
+
+</Step>
+
+<Step>
+
+### Create the first admin
+
+With `DISABLE_SIGN_UP` unset or `false`:
+
+```bash
+curl -X POST http://localhost:31415/api/auth/sign-up/email \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Admin","email":"admin@example.com","password":"change-me-now"}'
+```
+
+Then promote it once in PostgreSQL and sign in again to refresh the session:
+
+```sql
+UPDATE "user" SET role = 'admin' WHERE email = 'admin@example.com';
+```
+
+</Step>
+
+</Steps>
+
+### API surface
+
+| Route | Purpose |
+| --- | --- |
+| `GET /` | Health check, returns `OK` |
+| `POST /api/converse` | Multipart compatibility endpoint; returns raw PCM with base64url transcript/reply headers |
+| `WS /api/converse/stream` | Realtime PCM in, transcript/reply control messages and binary PCM out — what the mod uses |
+| `GET /api/me/language` | The account's language, polled by the mod |
+
+`/api/converse` requires a hashed, revocable API key in the `x-api-key` header.
+
+<Callout type="warn">
+  Port **31415** is fixed. If something else holds it the server exits with `EADDRINUSE` —
+  check with `lsof -i :31415`.
+</Callout>
+
+### Testing without Minecraft
+
+```bash
+# validation: missing fields are rejected before any provider call
+curl -i -X POST http://localhost:31415/api/converse
+# → HTTP 422
+
+# full round trip with a real recording
+curl -D response.headers -o reply.pcm -X POST http://localhost:31415/api/converse \
+  -H 'x-api-key: my_YOUR_DASHBOARD_KEY' \
+  -F audio=@speech.wav \
+  -F entityId=test-uuid \
+  -F entityType=minecraft:cow \
+  -F entityName=Cow \
+  -F playerName=joni \
+  -F dimension=minecraft:overworld \
+  -F health=10.0/10.0
+# → raw 24 kHz, 16-bit mono PCM; metadata in X-MineYapping-* headers
+```
+
+To confirm the wiring without spending tokens, run with a bogus `OPENAI_API_KEY`: a
+well-formed request comes back **502** carrying the upstream `invalid_api_key` message,
+which proves everything up to the provider call works.
+
+### Docker
+
+```bash
+docker compose up -d --build   # API :31415, web :4001 on loopback
+docker compose logs -f server
+```
+
+`DEPLOY.md` in the repository covers a full VPS deployment behind Caddy with managed
+PostgreSQL.
+
+## Building the mod from source
+
+No JDK install needed — the Gradle wrapper downloads JDK 25 (Adoptium) on first run, on
+both macOS and Windows.
+
+```bash
+cd minecraft-mod
+./gradlew build        # → build/libs/mineyapping-<version>.jar
+./gradlew runClient    # launches Minecraft with the mod loaded
+```
+
+In IntelliJ, **Open** the `minecraft-mod` folder as its own Gradle project and use the
+generated **Minecraft Client** run configuration.
+
+<Callout title="Minecraft 26.x is deobfuscated">
+  There is no `mappings` line in `build.gradle`, and dependencies use plain
+  `implementation` rather than `modImplementation`. Yarn and Mojang mapping files do not
+  exist for these versions — do not try to add them.
+</Callout>
+
+## Pointing the mod at your server
+
+Edit [`config/mine-yapping.json`](/docs/configuration) with Minecraft closed:
+
+```json
+{
+  "apiKey": "",
+  "serverUrl": "http://localhost:31415/api/converse",
+  "speechChance": 0.5
+}
+```
+
+Then create a key on your own dashboard at `http://localhost:4001` and run
+`/login <token>` in game.
+
+## Repo scripts
+
+| Script | Description |
+| --- | --- |
+| `bun run dev` | Start all apps in development |
+| `bun run dev:server` | Server only |
+| `bun run dev:admin` | Web app only |
+| `bun run build` | Build all applications |
+| `bun run check-types` | `tsc` across all workspaces |
+| `bun run check` | Biome format + lint, writes fixes |
+| `bun test` | Unit tests (scope with `bun test apps/server/src` to skip stale `dist/` copies) |
+| `bun run db:push` | Push schema changes |
+| `bun run db:generate` | Generate migrations |
+| `bun run db:migrate` | Run migrations |
+| `bun run db:studio` | Open Drizzle Studio |
+
+## Known limitations
+
+- **Android is unsupported.** Capture uses `javax.sound.sampled`, which has no working
+  mixer on the Android OpenJDK builds PojavLauncher-family launchers ship. Moving capture
+  to LWJGL's OpenAL (`ALC11.alcCaptureOpenDevice`) is the intended fix — Minecraft
+  already bundles it everywhere, and it would enable spatial playback too.
+- **Conversation history is in-process** — lost on restart, not shared across instances.
+- **The server port is fixed** at 31415.

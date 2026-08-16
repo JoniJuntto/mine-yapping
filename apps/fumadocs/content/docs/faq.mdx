@@ -1,0 +1,62 @@
+---
+title: FAQ
+description: Short answers to the questions people ask before installing.
+icon: MessagesSquare
+---
+
+**Is it free?**
+Yes. The mod is free and open source, and the hosted service gives every account 100
+requests a month (150 with Twitch linked). Donations are optional and unlock nothing.
+
+**Do I need to install anything on my Minecraft server?**
+No. The mod is client-only and never talks to the Minecraft server. It works on vanilla
+and modded servers with only you having it installed.
+
+**Will other players hear the mobs?**
+No. Transcripts and replies are local to your client. Only you see the chat lines and
+only you hear the audio.
+
+**Can I get banned for it?**
+It does not modify gameplay, movement, or rendering, and sends nothing to the Minecraft
+server — but some servers ban client mods by policy. Check the server rules.
+
+**Does it work on Bedrock / on my phone / on a console?**
+No. Java Edition on a desktop only. Android and PojavLauncher are unsupported because
+microphone capture has no working audio mixer there.
+
+**Forge or NeoForge?**
+No — Fabric only.
+
+**Do I need a microphone?**
+No. Typed chat near a mob works exactly like speaking to it.
+
+**Which Minecraft versions?**
+26.1 and newer, tested on 26.1.2. Older versions are not supported.
+
+**Is my voice recorded or stored?**
+No. Audio and transcripts are streamed through and discarded. Usage records contain
+counts and timings only.
+
+**Can I use my own OpenAI / ElevenLabs account?**
+Yes — save your keys under **Dashboard → Account**. Those requests do not touch the free
+allowance. See [Bring your own keys](/docs/account#bring-your-own-keys).
+
+**Can I run the whole backend myself?**
+Yes, it is in the same repository. See [Self-hosting](/docs/self-hosting).
+
+**Can I change what a mob sounds like?**
+Voices are assigned randomly per mob and are sticky. You control *how it talks* with
+[personalities](/docs/personalities); to re-roll a voice, delete the personality it is
+using.
+
+**What language does it speak?**
+Finnish by default, English if you switch the language in the dashboard. That one setting
+covers the website, the mob replies, and the mod's own messages.
+
+**How many requests does a session use?**
+One per reply — including reactions and ambient chatter. Ambient chatter rolls every 30
+seconds at a 50% chance by default, so turn it down with
+[`speechChance`](/docs/configuration#speechchance) if you are watching your allowance.
+
+**Does the limit roll over?**
+No. It resets at the start of each UTC calendar month.

@@ -1,0 +1,101 @@
+---
+title: Talking to mobs
+description: The four ways a conversation starts — push-to-talk, typed chat, interactions, and ambient chatter.
+icon: Mic
+---
+
+## Push-to-talk
+
+Hold **V**, speak, release. That is the whole interaction.
+
+- **Press** starts recording and picks a target.
+- **Release** sends what you said and asks for a reply.
+- The key is rebindable in **Options → Controls → MineYapping → Push to Talk**.
+
+Hold it for at least a moment — if less than roughly 30 ms of audio was captured, the
+mod says *Hold V a little longer so I can hear you* and sends nothing.
+
+### Who you are talking to
+
+1. If your crosshair is on a **living mob within 8 blocks**, that mob wins.
+2. Otherwise, the **nearest living entity within 8 blocks**.
+3. Never yourself, and never a dead entity.
+
+Other players count as living entities too. If nothing is in range you get
+*Look at a mob or move within 8 blocks.*
+
+When your turn is sent, the mob turns to look at you and plays its ambient sound, so you
+can tell who picked up the conversation.
+
+### What you see
+
+| Chat line | Colour | Meaning |
+| --- | --- | --- |
+| `Listening to <Mob>...` | aqua | Recording started |
+| `Thinking...` | gray | Turn committed, waiting on the reply |
+| `You: <transcript>` | dark gray | What the transcription heard |
+| `<Mob>: <reply>` | gold | The reply — also spoken aloud |
+| anything else | red / yellow | An error — see [Troubleshooting](/docs/troubleshooting) |
+
+These are local system messages. Nobody else on the server sees them.
+
+## Typed chat
+
+Type a message in chat while a mob is targeted or within 8 blocks, and it is treated as
+speech to that mob.
+
+<Callout type="warn" title="Your message does not reach the server">
+  While a mob is in range, typed chat is intercepted by the mod and **not** sent as
+  normal server chat. Move away from mobs (or into an empty area) to talk to other
+  players.
+</Callout>
+
+This is how to use Mine Yapping without a microphone. Note that the interception happens
+even before your key is checked: if you have not run `/login`, a message typed next to a
+mob is swallowed and you get a *Run /login &lt;token&gt;* error instead of it going to
+chat.
+
+## Reactions
+
+Right-clicking (using) or hitting a mob makes it react on its own — no key held, no
+typing. The mod sends *"\<player\> just interacted with you. React naturally."* or
+*"…just attacked you…"* and the mob answers in character.
+
+This only happens when a key is saved via `/login`.
+
+## Ambient chatter
+
+Every **30 seconds**, the mod rolls a dice. On a hit, a random living mob within 8 blocks
+starts a short conversation with you unprompted.
+
+The chance is **0.5** by default and lives in `speechChance` in the config file. Set it
+to `0` to turn ambient chatter off entirely, or `1` to make it fire on every check. See
+[Configuration](/docs/configuration).
+
+<Callout>
+  Ambient chatter and reactions consume your monthly allowance like any other request.
+  If you are close to the limit, lower `speechChance`.
+</Callout>
+
+## Memory
+
+Each mob remembers the **last 4 turns** of your conversation with it, keyed by the
+entity's UUID. Ask a cow "what did I just say?" and it knows; ask the cow next to it and
+it has no idea.
+
+Memory lives in the server's process, so it is cleared when the backend restarts, and it
+is capped at 1000 entities (the oldest are evicted first).
+
+A mob's assigned **personality and voice** are sticky in a stronger way — those are
+stored in the database and survive restarts, so the same cow keeps sounding like the
+same cow.
+
+## Audio
+
+Replies are spoken through your default system output device, panned left/right by where
+the mob stands relative to your view, and quieter the further away it is. Playback runs
+off the game thread, so the game never stutters waiting on speech.
+
+The mod captures at 24 kHz, 16-bit mono and plays back at 24 kHz stereo. If your device
+cannot do that, you get *24 kHz microphone not supported* or
+*24 kHz stereo playback is not supported*.

@@ -1,0 +1,19 @@
+{
+  "title": "Mine Yapping",
+  "pages": [
+    "index",
+    "---Getting started---",
+    "quickstart",
+    "installation",
+    "account",
+    "---Using the mod---",
+    "talking-to-mobs",
+    "personalities",
+    "configuration",
+    "---Help---",
+    "troubleshooting",
+    "faq",
+    "---Advanced---",
+    "self-hosting"
+  ]
+}

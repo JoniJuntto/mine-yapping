@@ -1,31 +1,89 @@
 ---
-title: Hello World
-description: Your favourite docs framework.
-icon: Rocket
+title: What is Mine Yapping?
+description: Talk to Minecraft mobs with your voice — hold V, speak at a mob, and it answers in character, in chat and out loud.
+icon: MessageCircle
 ---
 
-Hey there! Fumadocs is the docs framework that also works on Tanstack Start!
+Mine Yapping is a **client-only Fabric mod** for Minecraft: Java Edition. Hold **V**,
+speak at a mob, and it answers in character — the reply appears in your chat and is
+spoken through your speakers.
 
-## Heading
+<Callout type="warn" title="Not an official Minecraft product">
+  NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
+</Callout>
 
-Hello World!
+## Never installed a mod before?
+
+Start here and you will be talking to a cow in about ten minutes.
 
 <Cards>
-  <Card title="Learn more about Tanstack Start" href="https://tanstack.com/start" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
+  <Card
+    title="Quickstart"
+    description="The fastest path: install, log in, talk. ~10 minutes."
+    href="/docs/quickstart"
+  />
+  <Card
+    title="Installation"
+    description="Step-by-step install with per-OS folder paths and version requirements."
+    href="/docs/installation"
+  />
+  <Card
+    title="Account & API key"
+    description="Create an account, make a Minecraft key, and understand the monthly limit."
+    href="/docs/account"
+  />
+  <Card
+    title="Troubleshooting"
+    description="Every error message the mod can show, and what to do about it."
+    href="/docs/troubleshooting"
+  />
 </Cards>
 
-### CodeBlock
+## How it works
 
-```ts
-console.log("Hello World");
+The mod streams your microphone to the Mine Yapping backend, which runs
+speech-to-text → LLM → text-to-speech and streams the reply audio back.
+
+```
+[Fabric mod]  hold V → 20 ms PCM frames ───────────┐
+                                                   │ WebSocket
+[Backend]     /api/converse/stream ────────────────┘
+                 ├─ realtime transcription  → transcript
+                 ├─ LLM (streamed sentences)
+                 └─ ElevenLabs speech       → PCM chunks
+                                                   │
+[Fabric mod]  chat lines + positional audio ◄──────┘
 ```
 
-#### Table
+The mod **never talks to the Minecraft server**. It works in singleplayer, on vanilla
+multiplayer servers, and on modded servers — with only you having it installed. Nobody
+else sees your conversations or hears the replies.
 
-| Head                            | Description                         |
-| ------------------------------- | ----------------------------------- |
-| `hello`                         | Hello World                         |
-| very **important**              | Hey                                 |
-| _Surprisingly_                  | Fumadocs                            |
-| very long text that looks weird | hello world hello world hello world |
+## What you get
+
+| | |
+| --- | --- |
+| **Push-to-talk** | Hold **V** (rebindable), speak, release. |
+| **Smart targeting** | Whatever you look at wins; otherwise the nearest living mob within 8 blocks. |
+| **Typed chat** | Type near a mob and it replies instead of the message going to server chat. |
+| **Reactions** | Right-click or hit a mob and it reacts on its own. |
+| **Ambient chatter** | Mobs start conversations with you on their own (tunable, can be turned off). |
+| **Memory** | Each mob remembers the last 4 turns of your conversation with it. |
+| **Personalities** | Write your own system prompts per mob type from the dashboard. |
+| **Positional audio** | Replies are panned and attenuated by where the mob is. |
+
+## Requirements at a glance
+
+- Minecraft: **Java Edition 26.1+** (Bedrock is not supported)
+- **Fabric Loader 0.19.3+** and **Fabric API**
+- Windows, macOS, or Linux desktop — **Android / PojavLauncher is not supported**
+- A working microphone and audio output
+- A free account at [mine-yapper.com](https://mine-yapper.com)
+
+## Cost
+
+The mod is free and open source. The hosted service gives every account **100 requests
+per month** (150 if you link Twitch). You can also
+[bring your own OpenAI and ElevenLabs keys](/docs/account#bring-your-own-keys) for
+unlimited use, or [self-host the backend](/docs/self-hosting). Donations are optional
+and grant no features or extra usage.

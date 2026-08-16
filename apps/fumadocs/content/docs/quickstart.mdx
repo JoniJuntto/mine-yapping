@@ -1,0 +1,116 @@
+---
+title: Quickstart
+description: From nothing to talking to a cow in about ten minutes.
+icon: Rocket
+---
+
+The short version. If any step goes wrong, the long version is in
+[Installation](/docs/installation) and every error message is listed in
+[Troubleshooting](/docs/troubleshooting).
+
+<Steps>
+
+<Step>
+
+### Install Fabric
+
+Download and run the [Fabric installer](https://fabricmc.net/use/installer/), pick
+Minecraft **26.1.2**, and install. Then download the matching **Fabric API** jar from
+[the Fabric API downloads page](https://fabricmc.net/develop/) — you need version
+`0.155.2+26.1.2` or newer for 26.1.
+
+</Step>
+
+<Step>
+
+### Drop in the jars
+
+Download **`mineyapping.jar`**:
+
+```text
+https://github.com/JoniJuntto/mine-yapping/releases/latest/download/mineyapping.jar
+```
+
+Put it and the Fabric API jar into your `mods` folder:
+
+<Tabs items={["Windows", "macOS", "Linux"]}>
+  <Tab>
+    ```text
+    %APPDATA%\.minecraft\mods
+    ```
+  </Tab>
+  <Tab>
+    ```text
+    ~/Library/Application Support/minecraft/mods
+    ```
+  </Tab>
+  <Tab>
+    ```text
+    ~/.minecraft/mods
+    ```
+  </Tab>
+</Tabs>
+
+Create the folder if it does not exist.
+
+</Step>
+
+<Step>
+
+### Get an API key
+
+Sign up at [mine-yapper.com](https://mine-yapper.com), then open
+**Dashboard → Account → Minecraft API keys → Create key**.
+
+Copy the key immediately — it is shown only once.
+
+</Step>
+
+<Step>
+
+### Log in from the game
+
+Launch Minecraft with the **Fabric** profile, join any world, and type:
+
+```text
+/login my_YOUR_KEY_HERE
+```
+
+You should see **MineYapping login saved.** The key is stored locally in
+`config/mine-yapping.json`.
+
+<Callout type="warn">
+  `/login` is a client command — it never reaches the Minecraft server. Still, never
+  paste your key into normal chat, Discord or screenshots.
+</Callout>
+
+</Step>
+
+<Step>
+
+### Talk to a mob
+
+Walk up to any living mob, **hold V**, say something, and release.
+
+You should see, in order:
+
+| Chat line | Meaning |
+| --- | --- |
+| `Listening to Cow...` (aqua) | Recording started |
+| `Thinking...` (gray) | Your turn was sent |
+| `You: hello there` (dark gray) | What the server heard |
+| `Cow: Moo? Oh — hello!` (gold) | The reply, also spoken aloud |
+
+</Step>
+
+</Steps>
+
+## That's it
+
+From here:
+
+<Cards>
+  <Card title="Ways to talk" description="Voice, typed chat, punching, and ambient chatter." href="/docs/talking-to-mobs" />
+  <Card title="Personalities" description="Write your own prompts so a creeper acts like a creeper." href="/docs/personalities" />
+  <Card title="Configuration" description="Rebind V, change the ambient chatter rate, point at another server." href="/docs/configuration" />
+</Cards>

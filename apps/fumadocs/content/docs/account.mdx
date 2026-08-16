@@ -1,0 +1,133 @@
+---
+title: Account & API key
+description: Create an account, issue a Minecraft API key, understand the monthly limit, and bring your own provider keys.
+icon: KeyRound
+---
+
+The mod needs a key so the backend knows whose usage to count. Keys are created on the
+website and pasted into the game once with `/login`.
+
+## Create an account
+
+<Steps>
+
+<Step>
+
+### Sign up
+
+Go to [mine-yapper.com](https://mine-yapper.com) and create an account with your email
+and a password.
+
+</Step>
+
+<Step>
+
+### Verify your email
+
+Email verification is required — click the link in the message before signing in. If it
+does not arrive, check spam, then request a new one from the login page.
+
+</Step>
+
+<Step>
+
+### Optionally link Twitch
+
+Linking a Twitch account raises your monthly allowance by 1.5× (100 → 150 requests).
+It grants nothing else.
+
+</Step>
+
+</Steps>
+
+## Create a Minecraft API key
+
+Open **Dashboard → Account**, find **Minecraft API keys**, and press **Create key**.
+
+<Callout type="warn" title="Shown once">
+  The full key is displayed exactly once. Copy it right away. If you lose it, revoke it
+  and create a new one — there is no way to read it back.
+</Callout>
+
+Then join any world (singleplayer is fine) and run:
+
+```text
+/login my_YOUR_KEY_HERE
+```
+
+On success the mod replies **MineYapping login saved.** and writes the key to
+`config/mine-yapping.json` in your Minecraft folder.
+
+### Key hygiene
+
+- Create a **separate key per computer** so you can revoke one device without breaking
+  the others.
+- Revoke a key any time under **Dashboard → Account**. The next request from that
+  computer fails immediately.
+- Keys are stored hashed on the server. Support will only ever ask for the visible key
+  prefix and your account email — **never** the full key.
+- Never paste a key into server chat, Discord, a screenshot, or a bug report.
+
+## Monthly limit
+
+| | Requests / month |
+| --- | --- |
+| Standard account | **100** |
+| Twitch-linked account | **150** |
+
+Details:
+
+- One request = one mob reply — voice, typed chat, a reaction, or ambient chatter.
+- Only **successful** requests count. Failures are recorded but do not consume the
+  allowance.
+- The counter resets at the start of each **UTC calendar month**, not 30 days after
+  signup.
+- Over the limit, the mod shows `Conversation failed (402): Monthly free usage limit
+  reached`. Nothing breaks — the allowance simply returns next month.
+- **Donations do not raise the limit.** They grant no features and no extra usage.
+
+Your current usage is on **Dashboard**: requests this month, BYOK requests, AI tokens,
+and spoken characters.
+
+## Bring your own keys
+
+If you want to run without the monthly allowance, save your own provider keys under
+**Dashboard → Account → Bring your own provider keys**:
+
+- An **OpenAI** API key (transcription + replies)
+- An **ElevenLabs** API key (speech)
+
+Both are encrypted at rest and never shown again. While they are set, your requests are
+billed to your provider accounts and **do not consume the free allowance** — they are
+counted separately as *BYOK requests* on the dashboard.
+
+Press **Remove key** to go back to the free tier.
+
+## Language
+
+Mine Yapping ships in **Finnish by default**. The dashboard language setting also
+controls the language of the mob replies and the mod's own chat messages, so one switch
+covers everything.
+
+The mod re-checks the setting when you start talking, at most every 5 minutes — so a
+change takes effect without restarting the game.
+
+## Donations
+
+Donations go through Polar, are optional, and are one-time. They **do not** change your
+features, limit, or priority. Refund policy and legal terms are linked in the site
+footer.
+
+## Deleting your account
+
+Email the support address in the site footer from your account email. Conversation
+personas, API keys, sessions, and usage events are deleted; donation records are
+retained for accounting.
+
+## Privacy
+
+- Audio and transcripts are **not stored**. They are streamed through to the providers
+  and discarded.
+- Usage events record counts and timings only — no audio, no text.
+- Conversation memory (the last 4 turns per mob) lives in the server's memory and is
+  gone on restart.

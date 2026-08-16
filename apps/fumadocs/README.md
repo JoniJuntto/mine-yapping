@@ -1,14 +1,14 @@
 # fumadocs
 
-This is a Tanstack Start application generated with
-[Create Fumadocs](https://github.com/fuma-nama/fumadocs).
+The Mine Yapping documentation site (Fumadocs on TanStack Start + Vite).
 
-Run development server:
+Pages live in `content/docs/*.mdx`; sidebar order and section separators are in
+`content/docs/meta.json`. Site-wide strings (app name, GitHub repo, download URL) are in
+`src/lib/shared.ts`.
 
 ```bash
-npm run dev
-# or
-pnpm dev
-# or
-yarn dev
+bun run dev          # http://localhost:4000
+bun run build
+bun run start        # preview the build
+bun run types:check
 ```

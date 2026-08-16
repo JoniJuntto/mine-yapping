@@ -1,0 +1,93 @@
+---
+title: Troubleshooting
+description: Every message the mod can show you, what causes it, and how to fix it.
+icon: CircleHelp
+---
+
+## The mod does not load
+
+| Symptom | Fix |
+| --- | --- |
+| Minecraft starts without a **Mods** button / MineYapping missing | You launched the vanilla profile. Select the **fabric-loader** profile in the launcher. |
+| "requires fabric-api" error screen | Fabric API is missing or the wrong version. Install the jar matching your Minecraft version. |
+| "Incompatible mod set" / version mismatch | Minecraft, Fabric Loader, and Fabric API versions must match. See [Requirements](/docs/installation#requirements). |
+| Nothing happens at all | The jar must sit **directly** in `mods`, unzipped, and only one copy of it. Remove old `mineyapping-*.jar` files. |
+| You are on Forge / NeoForge / Bedrock / PojavLauncher | Unsupported. Fabric on desktop Java Edition only. |
+
+## Login problems
+
+| Message | Cause and fix |
+| --- | --- |
+| `Run /login <token> with your dashboard API key` | No key saved yet. Create one at **Dashboard → Account** and run `/login my_…` in a world. |
+| `Could not save login: …` | The mod could not write `config/mine-yapping.json`. Check folder permissions and free disk space. |
+| `Conversation failed (401): …` | The key is invalid or revoked. Create a new key and run `/login` again. |
+| `/login` shows as unknown command | The mod is not loaded — see the section above. |
+
+## Nothing is heard or nothing happens
+
+| Message | Cause and fix |
+| --- | --- |
+| `Look at a mob or move within 8 blocks.` | No living entity in range. Target one, or step closer. |
+| `Hold V a little longer so I can hear you.` | Under ~30 ms of audio was captured. Hold the key while you speak, and release after. |
+| `Microphone unavailable: …` | The JVM could not open a capture device. Grant OS microphone permission, set a working default input, restart Minecraft. |
+| `24 kHz microphone not supported` | The default input device cannot do 24 kHz 16-bit mono. Switch input device, or check for exclusive-mode locks by other apps. |
+| `Speech playback failed: …` / `24 kHz stereo playback is not supported` | The default output device could not be opened. Change the default output device and restart Minecraft. |
+| Chat lines appear but there is no sound | Check system volume and that the reply is not coming from a mob far away — volume falls off with distance. |
+
+<Callout type="info" title="macOS microphone permission">
+  macOS asks once, and denying it is sticky. Re-enable under **System Settings → Privacy
+  & Security → Microphone** for your launcher (or Java), then restart Minecraft.
+</Callout>
+
+## Server and quota errors
+
+| Message | Cause and fix |
+| --- | --- |
+| `Conversation failed: Connection refused` | The backend is unreachable. On the hosted service, check your internet; self-hosting, check the server is running and `serverUrl` is right. |
+| `Conversation failed (402): Monthly free usage limit reached` | You used your allowance. It resets at the start of the next UTC month. Donations do not raise it — see [Account & API key](/docs/account#monthly-limit). |
+| `Conversation failed (503): Could not verify usage limit` | The backend could not reach its database. Retry in a moment. |
+| `Conversation failed (502): OpenAI …` | Upstream transcription/LLM failure or a bad key. Retry; if self-hosting, check `OPENAI_API_KEY`. |
+| `Conversation failed (502): ElevenLabs …` | Upstream speech failure or a bad key. Retry; if self-hosting, check `ELEVENLABS_API_KEY`. |
+| `Server response is missing X-MineYapping-…` | A proxy stripped the response headers. Do not put the backend behind a header-filtering proxy. |
+| `Spontaneous conversation failed: …` | Same causes as above, triggered by ambient chatter. Set `speechChance` to `0` to stop it while you debug. |
+
+## Behaviour that looks like a bug
+
+**My typed chat never reaches the server.**
+That is intended: with a mob in range, typed chat is turned into a mob conversation and
+is not sent as server chat. Move away from mobs to talk to players. See
+[Talking to mobs](/docs/talking-to-mobs#typed-chat).
+
+**The wrong mob answered.**
+Whatever your crosshair is on wins; otherwise the *nearest* living entity within 8
+blocks, including other players. Look directly at the one you want.
+
+**A mob forgot what we were talking about.**
+Memory is the last 4 turns per mob, held in the server's process — a backend restart
+clears it. Personalities and voices survive; history does not.
+
+**My new personality is not being used.**
+Personalities are assigned on first contact and are sticky per mob. Existing mobs keep
+what they were given. Find a fresh mob, or delete the old personality to force a re-roll.
+
+**Replies are in Finnish.**
+Finnish is the default. Switch language in the dashboard — the mod picks it up within 5
+minutes, no restart needed.
+
+**Mobs keep talking to me unprompted.**
+That is ambient chatter. Set `speechChance` to `0` in
+[`mine-yapping.json`](/docs/configuration#speechchance).
+
+## Still stuck
+
+1. Reproduce the problem and check your Minecraft log (`.minecraft/logs/latest.log`) for
+   lines mentioning `mineyapping`.
+2. Open an issue at
+   [github.com/JoniJuntto/mine-yapping/issues](https://github.com/JoniJuntto/mine-yapping/issues)
+   with your Minecraft, Fabric Loader, Fabric API, and mod versions, your OS, and the
+   exact chat message.
+
+<Callout type="error">
+  Never include your API key — or a screenshot showing it — in an issue, a Discord
+  message, or a support email. Only the key's visible prefix is ever needed.
+</Callout>
