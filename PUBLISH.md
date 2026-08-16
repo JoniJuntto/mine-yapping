@@ -275,10 +275,10 @@ Do not expose ports 31415 or 4001 publicly. They must remain bound to
 
 The current release targets:
 
-- Minecraft Java Edition `26.1.2`
+- Minecraft Java Edition `1.21.11`
 - Fabric Loader `>=0.19.3`
-- Fabric API `0.155.2+26.1.2` at build time
-- Java `>=25`
+- Fabric API `0.141.6+1.21.11` at build time
+- Java `>=21`
 - Mod version `0.1.0`
 - Production API `https://mine-yapper.com/api/converse`
 
@@ -547,7 +547,7 @@ Monthly:
 - Test one new sign-up, credit checkout, API key, and real conversation.
 
 For every Minecraft release, verify compatibility before changing the advertised
-version. Never claim broad compatibility from the current `>=26.1` manifest
+version. Never claim broad compatibility from the current `~1.21.11` manifest
 alone; test the exact release.
 
 ## 9. Incident and rollback basics

@@ -9,7 +9,7 @@ pluginManagement {
 	}
 }
 
-// Downloads JDK 25 on demand, so nobody has to install one by hand.
+// Downloads JDK 21 on demand, so nobody has to install one by hand.
 plugins {
 	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }

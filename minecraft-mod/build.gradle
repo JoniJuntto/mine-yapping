@@ -1,5 +1,5 @@
 plugins {
-	id 'net.fabricmc.fabric-loom' version '1.17.19'
+	id 'net.fabricmc.fabric-loom-remap' version '1.17.19'
 }
 
 version = project.mod_version
@@ -10,11 +10,10 @@ base {
 }
 
 dependencies {
-	// Minecraft 26.x ships deobfuscated, so there is no `mappings` line and no
-	// remapping step -- plain `implementation` is correct here.
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 }
 
 processResources {
@@ -26,10 +25,10 @@ processResources {
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(25)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 
 tasks.withType(JavaCompile).configureEach {
-	options.release = 25
+	options.release = 21
 }

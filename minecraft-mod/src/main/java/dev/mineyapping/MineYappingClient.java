@@ -31,10 +31,10 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
@@ -121,8 +121,8 @@ public class MineYappingClient implements ClientModInitializer {
 		speechChance = config.speechChance();
 		refreshLanguage();
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
-				ClientCommands.literal("login")
-						.then(ClientCommands.argument("token", StringArgumentType.string()).executes(context -> {
+				ClientCommandManager.literal("login")
+						.then(ClientCommandManager.argument("token", StringArgumentType.string()).executes(context -> {
 							String token = StringArgumentType.getString(context, "token");
 							try {
 								saveConfig(token);
@@ -136,7 +136,7 @@ public class MineYappingClient implements ClientModInitializer {
 								return 0;
 							}
 						}))));
-		talkKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+		talkKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
 				"key.mineyapping.talk",
 				InputConstants.Type.KEYSYM,
 				GLFW.GLFW_KEY_V,
@@ -476,7 +476,7 @@ public class MineYappingClient implements ClientModInitializer {
 
 	private void say(Minecraft client, ChatFormatting color, String message) {
 		if (client.player != null) {
-			client.player.sendSystemMessage(Component.literal(message).withStyle(color));
+			client.player.displayClientMessage(Component.literal(message).withStyle(color), false);
 		}
 	}
 

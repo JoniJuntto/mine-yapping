@@ -21,7 +21,7 @@ mine-yapping/
 ```
 
 You need [Bun](https://bun.sh), PostgreSQL, and — for the mod — nothing but the Gradle
-wrapper, which downloads its own JDK 25.
+wrapper, which downloads its own JDK 21.
 
 ## Backend
 
@@ -165,7 +165,7 @@ PostgreSQL.
 
 ## Building the mod from source
 
-No JDK install needed — the Gradle wrapper downloads JDK 25 (Adoptium) on first run, on
+No JDK install needed — the Gradle wrapper downloads JDK 21 (Adoptium) on first run, on
 both macOS and Windows.
 
 ```bash
@@ -176,12 +176,6 @@ cd minecraft-mod
 
 In IntelliJ, **Open** the `minecraft-mod` folder as its own Gradle project and use the
 generated **Minecraft Client** run configuration.
-
-<Callout title="Minecraft 26.x is deobfuscated">
-  There is no `mappings` line in `build.gradle`, and dependencies use plain
-  `implementation` rather than `modImplementation`. Yarn and Mojang mapping files do not
-  exist for these versions — do not try to add them.
-</Callout>
 
 ## Pointing the mod at your server
 

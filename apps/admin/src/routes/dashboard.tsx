@@ -17,6 +17,7 @@ type Summary = {
 		ttsCharacters: number;
 	};
 	monthlyRequestLimit: number;
+	credits: number;
 };
 
 export const Route = createFileRoute("/dashboard")({
@@ -61,7 +62,7 @@ function Dashboard() {
 					{error}
 				</p>
 			)}
-			<div className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
 				<Stat
 					label={t("Requests this month")}
 					value={
@@ -69,6 +70,10 @@ function Dashboard() {
 							? `${summary.usage.requests} / ${summary.monthlyRequestLimit}`
 							: "—"
 					}
+				/>
+				<Stat
+					label={t("AI credits")}
+					value={summary?.credits.toLocaleString() ?? "—"}
 				/>
 				<Stat
 					label={t("BYOK requests")}

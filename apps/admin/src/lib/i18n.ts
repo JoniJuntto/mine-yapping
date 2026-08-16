@@ -103,12 +103,12 @@ const fi: Record<string, string> = {
 	"Shared API spend is temporarily unavailable.":
 		"Yhteisten API-kulujen tietoa ei juuri nyt ole saatavilla.",
 	"Keeping this online costs real money":
-		"Palvelun ylläpito maksaa oikeaa rahaa",
-	"That’s what I’ve spent on shared API costs this month so nobody has to pay to play. Credits cover the requests that go past the free allowance.":
-		"Sen verran olen käyttänyt yhteisiin API-kuluihin tässä kuussa, jotta kenenkään ei tarvitse maksaa pelaamisesta. Krediitit kattavat ilmaiskiintiön ylittävät pyynnöt.",
+		"Palvelun ylläpito valitettavasti maksaa",
+	"That’s what I’ve spent on API costs this month so nobody has to pay to play. If you want to support the service, you can buy AI credits.":
+		"Olen henkilökohtaisesti käyttänyt API-kuluihin tässä kuussa, jotta kenenkään ei tarvitse maksaa pelaamisesta. Jos haluat tukea palvelua, voit ostaa AI-krediittejä.",
 	"Need more requests?": "Tarvitsetko lisää pyyntöjä?",
-	"Buy AI credits when the free allowance runs out. One credit is one request, they never expire, and they unlock nothing — the mod is free either way.":
-		"Osta AI-krediittejä, kun ilmaiskiintiö loppuu. Yksi krediitti on yksi pyyntö, ne eivät vanhene eivätkä avaa mitään — modi on joka tapauksessa ilmainen.",
+	"Buy AI credits when the free allowance runs out. One credit is one request, they don't unlock anything — the mod is free either way.":
+		"Osta AI-krediittejä, kun ilmaiskiintiö loppuu. Yksi krediitti on yksi pyyntö, ne eivät avaa mitään — modi on joka tapauksessa ilmainen.",
 	"Thank you": "Kiitos",
 	"Our supporters": "Tukijamme",
 	"Be the first supporter.": "Ole ensimmäinen tukija.",
@@ -117,8 +117,8 @@ const fi: Record<string, string> = {
 		"AI-krediittejä ei ole juuri nyt myynnissä.",
 	"AI credits": "AI-krediitit",
 	"Credits left": "Krediittejä jäljellä",
-	"One credit is one request. Credits never expire and are used only after the monthly free allowance runs out.":
-		"Yksi krediitti on yksi pyyntö. Krediitit eivät vanhene, ja ne kuluvat vasta kun kuukausittainen ilmaiskiintiö on käytetty.",
+	"One credit is one request. Credits are used only after the monthly free allowance runs out.":
+		"Yksi krediitti on yksi pyyntö. Krediitit kuluvat vasta kun kuukausittainen ilmaiskiintiö on käytetty.",
 	Dashboard: "Hallintapaneeli",
 	Account: "Tili",
 	"Connect Minecraft": "Yhdistä Minecraft",

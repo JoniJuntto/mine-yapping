@@ -224,13 +224,13 @@ To confirm the pipeline is wired up without spending tokens, run with a bogus
 
 ### Building and running the mod
 
-No JDK install needed — the Gradle wrapper downloads JDK 25 (Adoptium) itself on
+No JDK install needed — the Gradle wrapper downloads JDK 21 (Adoptium) itself on
 first run, on both macOS and Windows.
 
 ```bash
 cd minecraft-mod
 ./gradlew build        # → build/libs/mineyapping-0.1.0.jar
-./gradlew runClient    # launches Minecraft 26.1.2 with the mod loaded
+./gradlew runClient    # launches Minecraft 1.21.11 with the mod loaded
 ```
 
 In IntelliJ: **Open** the `minecraft-mod` folder as its own Gradle project, then
@@ -298,13 +298,6 @@ docker compose logs -f server
   configurable in `mine-yapping.json`, but there is no in-game editor yet.
 - **Conversation history is in-process** — it's lost on restart and isn't shared
   across server instances.
-
-## Notes on Minecraft 26.x
-
-Minecraft 26.x ships **deobfuscated**, so there is no `mappings` line in
-`build.gradle` and dependencies use plain `implementation` rather than
-`modImplementation`. Yarn and Mojang mapping files do not exist for these
-versions — do not try to add them.
 
 ## Available scripts
 

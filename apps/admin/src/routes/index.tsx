@@ -33,6 +33,9 @@ function Landing() {
 				<nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
 					<img src="/logo.png" alt="Mine Yapping" className="h-10 w-auto" />
 					<div className="flex gap-2">
+						<a href="https://docs.mine-yapper.com" className="button-secondary">
+							Docs
+						</a>
 						<a href={MOD_DOWNLOAD_URL} className="button-secondary">
 							{t("Download mod")}
 						</a>
@@ -54,7 +57,6 @@ function Landing() {
 				</nav>
 				<section className="mx-auto grid min-h-[70vh] max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-2">
 					<div>
-						<p className="eyebrow">{t("Your world finally talks back")}</p>
 						<h1 className="max-w-3xl text-5xl leading-[1.05] md:text-7xl">
 							{t("Give every Minecraft mob a voice.")}
 						</h1>
@@ -74,7 +76,10 @@ function Landing() {
 							>
 								{t("Create free account")}
 							</Link>
-							<a href="#how-it-works" className="button-secondary px-6 py-3">
+							<a
+								href="https://docs.mine-yapper.com"
+								className="button-secondary px-6 py-3"
+							>
 								{t("How it works")}
 							</a>
 						</div>
@@ -128,14 +133,13 @@ function Landing() {
 					</div>
 				</section>
 				<section className="mx-auto max-w-4xl px-5 py-16 text-center">
-					<p className="eyebrow">{t("Free and open")}</p>
 					<h2 className="text-4xl">
 						{t("Everyone gets the same Mine Yapping.")}
 					</h2>
 					<div className="mt-8 grid gap-5 text-left md:grid-cols-2">
 						<article className="card">
 							<h3 className="text-2xl">{t("Use it")}</h3>
-							<p className="font-black text-3xl">€0</p>
+							<p className="font-black text-3xl">0 €</p>
 							<p className="text-ink/65">
 								{t(
 									"The mod and all its features are free. Twitch sign-in includes 1.5× the standard monthly usage.",
