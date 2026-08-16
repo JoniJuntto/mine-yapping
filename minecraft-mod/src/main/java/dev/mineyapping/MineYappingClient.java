@@ -61,6 +61,9 @@ public class MineYappingClient implements ClientModInitializer {
 			.build();
 	private static final Gson GSON = new Gson();
 	private static final long LANGUAGE_REFRESH_MS = 5 * 60_000L;
+	private static final List<String> MOB_NAMES = List.of(
+			"Aino", "Eino", "Helmi", "Hugo", "Iiris", "Kalle", "Lumi", "Milo",
+			"Nelli", "Onni", "Pihla", "Roope", "Sisu", "Taimi", "Toivo", "Viljo");
 
 	// Chat lines follow the dashboard language, not Minecraft's, so that one
 	// setting covers the site, the mob replies and the mod's own messages.
@@ -266,10 +269,16 @@ public class MineYappingClient implements ClientModInitializer {
 	}
 
 	private MobTarget target(Minecraft client, LivingEntity entity) {
+		String entityName = entity.hasCustomName()
+				? entity.getCustomName().getString()
+				: MOB_NAMES.get(Math.floorMod(entity.getUUID().hashCode(), MOB_NAMES.size()));
+		entity.setCustomName(Component.literal(entityName));
+		entity.setCustomNameVisible(true);
 		return new MobTarget(
+				entity,
 				entity.getUUID().toString(),
 				EntityType.getKey(entity.getType()).toString(),
-				entity.getName().getString(),
+				entityName,
 				client.player.getName().getString(),
 				client.level.dimension().identifier().toString(),
 				String.format("%.1f/%.1f", entity.getHealth(), entity.getMaxHealth()),
@@ -390,6 +399,7 @@ public class MineYappingClient implements ClientModInitializer {
 	}
 
 	private record MobTarget(
+			LivingEntity entity,
 			String entityId,
 			String entityType,
 			String entityName,
@@ -461,17 +471,14 @@ public class MineYappingClient implements ClientModInitializer {
 				textMessage.setLength(0);
 				String type = event == null ? null : event.type();
 				if ("ready".equals(type)) {
-					try {
-						if (player == null) player = new PcmPlayer(playbackGains(target));
-						if (inputText != null) webSocket.sendText("text:" + inputText, true);
-					} catch (Exception exception) {
-						onError(webSocket, exception);
-					}
-				} else if ("transcript".equals(type)) {
+					if (inputText != null) webSocket.sendText("text:" + inputText, true);
+				} else if ("transcript".equals(type) && inputText == null) {
 					client.execute(() -> say(client, ChatFormatting.DARK_GRAY, event.value()));
 				} else if ("reply".equals(type)) {
-					client.execute(() -> say(client, ChatFormatting.GOLD,
-							target.entityName() + ": " + event.value()));
+					client.execute(() -> {
+						showSpeechBubble(event.value());
+						say(client, ChatFormatting.GOLD, target.entityName() + ": " + event.value());
+					});
 				} else if ("error".equals(type)) {
 					client.execute(() -> say(
 							client, ChatFormatting.RED, msg("Conversation failed: %s", event.value())));
@@ -486,7 +493,10 @@ public class MineYappingClient implements ClientModInitializer {
 		@Override
 		public CompletionStage<?> onBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
 			try {
-				if (player == null) player = new PcmPlayer(playbackGains(target));
+				if (player == null) {
+					player = new PcmPlayer(playbackGains(target));
+					client.execute(() -> showSpeechBubble("…"));
+				}
 				byte[] chunk = new byte[data.remaining()];
 				data.get(chunk);
 				player.write(chunk, chunk.length);
@@ -531,6 +541,19 @@ public class MineYappingClient implements ClientModInitializer {
 				player.close();
 				player = null;
 			}
+			client.execute(() -> {
+				if (target.entity().isAlive()) {
+					target.entity().setCustomName(Component.literal(target.entityName()));
+					target.entity().setCustomNameVisible(true);
+				}
+			});
+		}
+
+		private void showSpeechBubble(String reply) {
+			if (!target.entity().isAlive()) return;
+			String text = reply.length() > 48 ? reply.substring(0, 45) + "…" : reply;
+			target.entity().setCustomName(Component.literal(target.entityName() + "  💬 " + text));
+			target.entity().setCustomNameVisible(true);
 		}
 	}
 
